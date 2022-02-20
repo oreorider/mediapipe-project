@@ -23,6 +23,7 @@ hip_turn_data = []
 
 #start = False
 start = True
+do_once = True
 def calculate_body_turn(shoulder_vec, hip_vec):
     v1=shoulder_vec/LA.norm(shoulder_vec)
     v2=hip_vec/LA.norm(hip_vec)
@@ -54,9 +55,9 @@ def calculate_angle_3d(start, middle, end):
     return math.degrees(angle_rad)
     
 
-with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9) as pose:
+with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) as pose:
     currentframe = 0
-    cap = cv2.VideoCapture('slowmocropped2.mp4')
+    cap = cv2.VideoCapture("_test1.mp4")
     while cap.isOpened():
         ret, frame = cap.read()
         
@@ -70,7 +71,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9) a
         #extract landmarks
         try:
             landmarks = results.pose_landmarks.landmark
-
+            #if do_once:
+                
+                #do_once=False
             if start:
                 #right left hip landmark
                 rhip_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value]
@@ -83,18 +86,20 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9) a
 
                 #right wrist landmark
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
+                lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
                 #calculate elbow angle
-                elbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
-                elbow_pos_np = np.array([elbow_landmark.x, elbow_landmark.y, elbow_landmark.y])
-                shoulder_pos_np = np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z])
-                wrist_pos_np = np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z])
+                relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
+                lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+                elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.y]) #left elbow
+                shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
+                wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
                 elbow_angle = calculate_angle_2d(shoulder_pos_np, elbow_pos_np, wrist_pos_np)
                 
                 #calculate wrist angle
-                hand_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_INDEX.value]#right index finger landmark values
-                hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])
-                wrist_angle = calculate_angle_2d(elbow_pos_np, wrist_pos_np, hand_pos_np)
+                hand_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
+                hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
+                wrist_angle = calculate_angle_2d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
 
                 #calculate body turn
                 hip_vec = np.array([rhip_landmark.x - lhip_landmark.x, rhip_landmark.z - lhip_landmark.z])
@@ -187,6 +192,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9) a
     
     #if data is smooth, calculate acceleration
     if smooth:
+        """
         hip_accel = np.gradient(np.gradient(hip_pos, axis=1), axis=1)
         shoulder_accel = np.gradient(np.gradient(shoulder_pos, axis=1), axis=1)
         wrist_accel = np.gradient(np.gradient(wrist_pos, axis=1), axis=1)
@@ -194,50 +200,64 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9) a
         hip_accel_norm = LA.norm(hip_accel, axis=0)
         shoulder_accel_norm = LA.norm(shoulder_accel, axis=0)
         wrist_accel_norm = LA.norm(wrist_accel, axis=0)
+        """
 
-        torso_angular_accel = np.gradient(np.gradient(body_turn_data))
-        hip_angular_accel = np.gradient(np.gradient(hip_turn_data))
-        wrist_angular_accel = np.gradient(np.gradient(wrist_angle_data))
+        torso_angular_vel = np.gradient(body_turn_data)
+        hip_angular_vel = np.gradient(hip_turn_data)
+        wrist_angular_vel = np.gradient(wrist_angle_data)
+        elbow_angular_vel = np.gradient(elbow_angle_data)
 
-        torso_angular_accel_max = np.argmax(torso_angular_accel)
-        hip_angular_accel_max = np.argmax(hip_angular_accel)
-        wrist_angular_accel_max = np.argmax(wrist_angular_accel)
+        torso_angular_vel_max = np.argmax(torso_angular_vel)
+        hip_angular_vel_max = np.argmax(hip_angular_vel)
+        wrist_angular_vel_max = np.argmax(wrist_angular_vel)
 
 
-        print("highest torso angular accel at frame ", torso_angular_accel_max)
-        print("highest hip angular accel at frame ", hip_angular_accel_max)
-        print("highest wrist angular accel at  ", wrist_angular_accel_max)
+        print("highest torso angular vel at frame ", torso_angular_vel_max)
+        print("highest hip angular vel at frame ", hip_angular_vel_max)
+        print("highest wrist angular accel at  ", wrist_angular_vel_max)
 
-        hip_turn_data_smooth = savgol_filter(hip_turn_data, 51, 3)
-        hip_angular_accel_smooth = np.gradient(np.gradient(hip_turn_data_smooth))
+        hip_turn_data_smooth = savgol_filter(hip_turn_data, 20, 3)
+        hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth)
 
-        hip_angular_accel_graph = plt.figure(1)
-        plt.scatter(framenumber, hip_angular_accel)
-        plt.title("hip angular acceleration - no smoothing")
+        torso_turn_data_smooth = savgol_filter(body_turn_data, 20, 3)
+        torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth)
 
-        hip_angular_accel_graph_smooth = plt.figure(7)
-        plt.scatter(framenumber, hip_angular_accel_smooth)
-        plt.title("hip angular acceleration with smoothing")
+        wrist_turn_data_smooth = savgol_filter(wrist_angle_data, 20, 3)
+        wrist_angular_vel_smooth = np.gradient(wrist_turn_data_smooth)
+
+        elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
+        elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth)
+
+        hip_angvel_graph = plt.figure(0)
+        plt.scatter(framenumber, hip_angular_vel_smooth)
+        plt.title("hip angular velocity with smoothing")
         
-        torso_angular_accel_graph = plt.figure(2)
-        plt.scatter(framenumber, torso_angular_accel)
-        plt.title("torso angular acceleration - rotation")
+        torso_angvel_graph = plt.figure(1)
+        plt.scatter(framenumber, torso_angular_vel_smooth)
+        plt.title("torso angular velocity with smoothing")
 
-        wrist_angular_accel_graph = plt.figure(3)
-        plt.scatter(framenumber, wrist_angular_accel)
-        plt.title("wrist angular acceleration")
+        wrist_angvel_graph = plt.figure(2)
+        plt.scatter(framenumber, wrist_angular_vel_smooth)
+        plt.title("wrist angular velocity with smoothing")
 
-        elbow_angle_graph = plt.figure(4)
-        plt.scatter(framenumber, elbow_angle_data)
-        plt.title("elbow angle")
+        elbow_angvel_graph = plt.figure(3)
+        plt.scatter(framenumber, elbow_angular_vel_smooth)
+        plt.title("elbow angular velocity with smoothing")
 
-        body_turn_graph = plt.figure(5)
+        hip_turn_graph = plt.figure(4)
         plt.scatter(framenumber, hip_turn_data_smooth)
-        plt.title("hip turn with smoothing")
-
-        hip_turn_graph = plt.figure(6)
         plt.scatter(framenumber, hip_turn_data)
-        plt.title("hip turn no smoothing")
+        plt.title("hip turn")
+
+        torso_turn_graph = plt.figure(6)
+        plt.scatter(framenumber, torso_turn_data_smooth)
+        plt.scatter(framenumber, body_turn_data)
+        plt.title("torso turn")
+
+        elbwo_angle_graph = plt.figure(7)
+        plt.scatter(framenumber, elbow_angle_data_smooth)
+        plt.scatter(framenumber, elbow_angle_data)
+        plt.title("elbow angle data")
 
         plt.show()
     else:
