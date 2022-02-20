@@ -107,26 +107,28 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
                 lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
-                #if(lwrist_landmark.visibility < 0.5):#if wrist no longer visible, swing is complete
-                #    break
-                   
-                #calculate elbow angle
-                relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
-                lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
-                elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.y]) #left elbow
-                shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
-                wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
-                elbow_angle = calculate_angle_3d(shoulder_pos_np, elbow_pos_np, wrist_pos_np)
-                
-                #calculate wrist angle
-                hand_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
-                hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
-                wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
+                if(lwrist_landmark.visibility > 0.5):#only calculate elbow and wrist angle is wrist is visible
+                    #calculate elbow angle
+                    relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
+                    lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+                    elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.y]) #left elbow
+                    shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
+                    wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
+                    elbow_angle = calculate_angle_3d(shoulder_pos_np, elbow_pos_np, wrist_pos_np)
+                    
+                    #calculate wrist angle
+                    hand_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
+                    hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
+                    wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
 
+
+                lfoot_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value]
+                rfoot_landmark = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value]
+                foot_vec = np.array([global_x_right.x - global_x_left.x, global_x_right.z - global_x_left.z])
                 #calculate hip turn
                 hip_vec = np.array([rhip_landmark.x - lhip_landmark.x, rhip_landmark.z - lhip_landmark.z])
-                foot_vec = global_x_vec
-                hip_turn_angle = calculate_body_turn(global_x_vec, hip_vec)
+                #foot_vec = global_x_vec
+                hip_turn_angle = calculate_body_turn(foot_vec, hip_vec)
 
                 #calculate body turn
                 shoulder_vec = np.array([rshoulder_landmark.x - lshoulder_landmark.x, rshoulder_landmark.z - lshoulder_landmark.z])
@@ -143,6 +145,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
+                print("elbow angle ", elbow_angle)
 
                 currentframe += 1
                 framenumber.append(currentframe)
