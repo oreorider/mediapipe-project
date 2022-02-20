@@ -8,7 +8,9 @@ import time
 import math
 from pandas import DataFrame
 
-#CHANGE VIDEO NAME
+#CHANGE VIDEO NAME 
+#프로그렘 돌리기전에 파일 이름 바꿔야됨
+#파일 타입 무조건 포함해야됨 예) ".mp4"
 video_name = "mirrored.mp4"
 
 
@@ -35,6 +37,8 @@ def calculate_body_turn(shoulder_vec, hip_vec):
     v2=hip_vec/LA.norm(hip_vec)
     res = np.dot(v1, v2)
     angle_rad = np.arccos(res)
+    if(np.cross(v1, v2)<0):
+        return -1*math.degrees(angle_rad)
     return math.degrees(angle_rad)
 
 
@@ -103,8 +107,8 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
                 lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
-                if(lwrist_landmark.visibility < 0.5):#if wrist no longer visible, swing is complete
-                    break
+                #if(lwrist_landmark.visibility < 0.5):#if wrist no longer visible, swing is complete
+                #    break
                    
                 #calculate elbow angle
                 relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
@@ -119,14 +123,15 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
                 hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
                 wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
 
-                #calculate body turn
-                shoulder_vec = np.array([rshoulder_landmark.x - lshoulder_landmark.x, rshoulder_landmark.z - lshoulder_landmark.z])
-                body_turn_angle = calculate_body_turn(global_x_vec, shoulder_vec)
-
                 #calculate hip turn
                 hip_vec = np.array([rhip_landmark.x - lhip_landmark.x, rhip_landmark.z - lhip_landmark.z])
                 foot_vec = global_x_vec
                 hip_turn_angle = calculate_body_turn(global_x_vec, hip_vec)
+
+                #calculate body turn
+                shoulder_vec = np.array([rshoulder_landmark.x - lshoulder_landmark.x, rshoulder_landmark.z - lshoulder_landmark.z])
+                body_turn_angle = calculate_body_turn(hip_vec, shoulder_vec)
+                
 
                 #capture data
                 hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
@@ -223,11 +228,6 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
         hip_angular_vel_max = np.argmax(hip_angular_vel)
         wrist_angular_vel_max = np.argmax(wrist_angular_vel)
 
-
-        print("highest torso angular vel at frame ", torso_angular_vel_max)
-        print("highest hip angular vel at frame ", hip_angular_vel_max)
-        print("highest wrist angular accel at  ", wrist_angular_vel_max)
-
         hip_turn_data_smooth = savgol_filter(hip_turn_data, 20, 3)
         hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth)
 
@@ -239,6 +239,12 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
 
         elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth)
+
+        print("highest hip angular vel at frame ", np.argmax(hip_angular_vel_smooth))
+        print("highest torso angular vel at frame ", np.argmax(torso_angular_vel_smooth))
+        print("highest elbow angular vel at frame ", np.argmax( elbow_angular_vel_smooth))
+        print("highest wrist angular accel at frame  ", np.argmax(wrist_angular_vel_smooth))
+
 
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
@@ -286,9 +292,3 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
         plt.show()
     else:
         print('camera missed some frames and was not able to do analysis')
-
-
-
-
-
-    
