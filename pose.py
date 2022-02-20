@@ -145,7 +145,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
-                #print("hip angle ", wrist_angle)
+                print("hip angle ", hip_turn_angle)
 
                 currentframe += 1
                 framenumber.append(currentframe)
@@ -232,16 +232,16 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
         wrist_angular_vel_max = np.argmax(wrist_angular_vel)
 
         hip_turn_data_smooth = savgol_filter(hip_turn_data, 20, 3)
-        hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth)
+        hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth, 3)
 
         torso_turn_data_smooth = savgol_filter(body_turn_data, 20, 3)
-        torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth)
+        torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth, 3)
 
         wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 20, 3)
-        wrist_angular_vel_smooth = np.gradient(wrist_angle_data_smooth)
+        wrist_angular_vel_smooth = np.gradient(wrist_angle_data_smooth, 10)
 
         elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
-        elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth)
+        elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth, 3)
 
         print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth))
         print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth))
