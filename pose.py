@@ -135,7 +135,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
                 body_turn_angle = calculate_body_turn(hip_vec, shoulder_vec)
                 
 
-                #capture data
+                #capture datas
                 hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
                 shoulder_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value])
                 wrist_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value])
@@ -145,7 +145,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
-                print("elbow angle ", elbow_angle)
+                #print("hip angle ", wrist_angle)
 
                 currentframe += 1
                 framenumber.append(currentframe)
@@ -243,10 +243,10 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
         elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth)
 
-        print("highest hip angular vel at frame ", np.argmax(hip_angular_vel_smooth))
-        print("highest torso angular vel at frame ", np.argmax(torso_angular_vel_smooth))
-        print("highest elbow angular vel at frame ", np.argmax( elbow_angular_vel_smooth))
-        print("highest wrist angular accel at frame  ", np.argmax(wrist_angular_vel_smooth))
+        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth))
+        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth))
+        print("팔꿈치 최대 각속도 @ frame number", np.argmax( elbow_angular_vel_smooth))
+        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth))
 
 
         df = DataFrame({'Frame': framenumber, 
