@@ -69,7 +69,7 @@ def calculate_angle_3d(start, middle, end):
     return math.degrees(angle_rad)
     
 
-with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) as pose:
+with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, enable_segmentation = True) as pose:
     currentframe = 0
     cap = cv2.VideoCapture(video_name)
     while cap.isOpened():
@@ -81,7 +81,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
 
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
-
+        
         #extract landmarks
         try:
             landmarks = results.pose_landmarks.landmark
@@ -155,6 +155,8 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5) a
         
         #make detection
         results = pose.process(image)
+
+        
         
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
