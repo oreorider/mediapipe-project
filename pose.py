@@ -11,7 +11,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "mirrored.mp4"
+video_name = "test4.mp4"
 
 
 mp_drawing = mp.solutions.drawing_utils
@@ -145,7 +145,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
-                print("hip angle ", hip_turn_angle)
+                print("torso angle ", body_turn_angle)
 
                 currentframe += 1
                 framenumber.append(currentframe)
@@ -258,6 +258,32 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                         'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth})
         df.to_excel('results.xlsx', sheet_name='sheet1', index=False)
 
+        fig, axs = plt.subplots(2 ,4)
+        axs[0,0].plot(framenumber, hip_turn_data_smooth)
+        axs[0,0].set_title('hip turn')
+
+        axs[1,0].plot(framenumber, hip_angular_vel_smooth)
+        axs[1,0].set_title('hip angular velocity')
+
+        axs[0,1].plot(framenumber, torso_turn_data_smooth)
+        axs[0,1].set_title('torso turn')
+
+        axs[1,1].plot(framenumber, torso_angular_vel_smooth)
+        axs[1,1].set_title('torso angular velocity')
+
+        axs[0,2].plot(framenumber, elbow_angle_data_smooth)
+        axs[0,2].set_title('elbow angle')
+
+        axs[1,2].plot(framenumber, elbow_angular_vel_smooth)
+        axs[1,2].set_title('elbow angular velocity')
+
+        axs[0,3].plot(framenumber, wrist_angle_data_smooth)
+        axs[0,3].set_title('wrist angle')
+
+        axs[1,3].plot(framenumber, wrist_angular_vel_smooth)
+        axs[1,3].set_title('wrist angular velocity')
+
+        """
         hip_angvel_graph = plt.figure(0)
         plt.scatter(framenumber, hip_angular_vel_smooth)
         plt.title("hip angular velocity with smoothing")
@@ -293,7 +319,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
         plt.scatter(framenumber, wrist_angle_data_smooth)
         plt.scatter(framenumber, wrist_angle_data)
         plt.title("wrist angle data blue = smoothed")
-
+        """
         plt.show()
     else:
         print('camera missed some frames and was not able to do analysis')
