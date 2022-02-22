@@ -11,12 +11,15 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "test4.mp4"
+video_name = "mirrored.mp4"
 
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
+swing_start_frame = 0
+swing_end_frame = 0
+prev_wrist_max_pos = 0
 framenumber = []
 
 hip_position = []
@@ -72,7 +75,10 @@ def calculate_angle_3d(start, middle, end):
 with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, enable_segmentation = True) as pose:
     currentframe = 0
     cap = cv2.VideoCapture(video_name)
+    
     while cap.isOpened():
+        width  = cap.get(3)
+        height = cap.get(4)
         ret, frame = cap.read()
         
         if not ret:
@@ -111,7 +117,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                     #calculate elbow angle
                     relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
                     lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
-                    elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.y]) #left elbow
+                    elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.z]) #left elbow
                     shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
                     wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
                     elbow_angle = calculate_angle_3d(shoulder_pos_np, elbow_pos_np, wrist_pos_np)
@@ -122,9 +128,10 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                     wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
 
 
-                lfoot_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value]
-                rfoot_landmark = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value]
-                foot_vec = np.array([global_x_right.x - global_x_left.x, global_x_right.z - global_x_left.z])
+                lfoot_landmark = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value]
+                rfoot_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value]
+                #foot_vec = np.array([global_x_right.x - global_x_left.x, global_x_right.z - global_x_left.z])
+                foot_vec = np.array([rfoot_landmark.x - lfoot_landmark.x, rfoot_landmark.z - lfoot_landmark.z])
                 #calculate hip turn
                 hip_vec = np.array([rhip_landmark.x - lhip_landmark.x, rhip_landmark.z - lhip_landmark.z])
                 #foot_vec = global_x_vec
@@ -145,8 +152,21 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
-                print("torso angle ", body_turn_angle)
-
+                print("hip angle ", hip_turn_angle)
+                #left_ankle_coord = (int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].x * width), int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y * height))
+                #right_foot_coord = (int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * width), int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y * height))
+                #right_foot_coord = 
+                #print("right foot y pos ", rfoot_landmark.y)
+                if((landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y < landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) and swing_start_frame==0):
+                    swing_start_frame = currentframe
+                #time.sleep(0.1)
+                #print(lwrist_landmark.x)
+                if(prev_wrist_max_pos < lwrist_landmark.x):
+                    prev_wrist_max_pos = lwrist_landmark.x
+                    swing_end_frame = currentframe
+                #image = cv2.circle(image, left_ankle_coord, 20, (255, 0, 0), 3)
+                #image = cv2.circle(image, right_foot_coord, 20, (0, 255, 0), 3)
+                #image = cv2.circle(image, (width*0.1, height*0.9), 20, (255,0,0), 3)
                 currentframe += 1
                 framenumber.append(currentframe)
 
@@ -245,10 +265,22 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
         elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth, 3)
 
+        swing_length = swing_end_frame - swing_start_frame
+
         print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth))
+        print((np.argmax(hip_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+
         print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth))
-        print("팔꿈치 최대 각속도 @ frame number", np.argmax( elbow_angular_vel_smooth))
+        print((np.argmax(torso_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+
+        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth))
+        print((np.argmax(elbow_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+        
         print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth))
+        print((np.argmax(wrist_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+
+        print("swing start at frame ", swing_start_frame)
+        print('swing end at frame ', swing_end_frame)
 
 
         df = DataFrame({'Frame': framenumber, 
