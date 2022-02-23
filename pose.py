@@ -11,11 +11,14 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "mirrored.mp4"
+video_name = "test99trim.mp4"
 
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
+
+prev_elbow_angle = 0
+prev_wrist_angle = 0
 
 swing_start_frame = 0
 swing_end_frame = 0
@@ -113,7 +116,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
                 lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
-                if(lwrist_landmark.visibility > 0.5):#only calculate elbow and wrist angle is wrist is visible
+                if(lwrist_landmark.visibility > 0.8):#only calculate elbow and wrist angle is wrist is visible
                     #calculate elbow angle
                     relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
                     lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
@@ -126,6 +129,14 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                     hand_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
                     hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
                     wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
+
+                    prev_elbow_angle = elbow_angle
+                    prev_wrist_angle = wrist_angle
+                else:
+                    print('elbow angle ', elbow_angle)
+                    elbow_angle = prev_elbow_angle
+                    wrist_angle = prev_wrist_angle
+
 
 
                 lfoot_landmark = landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value]
@@ -152,16 +163,17 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
 
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(elbow_angle)
-                print("hip angle ", hip_turn_angle)
+                #print("hip angle ", hip_turn_angle)
                 #left_ankle_coord = (int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].x * width), int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y * height))
                 #right_foot_coord = (int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * width), int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y * height))
-                #right_foot_coord = 
                 #print("right foot y pos ", rfoot_landmark.y)
+                
                 if((landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y < landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) and swing_start_frame==0):
                     swing_start_frame = currentframe
                 #time.sleep(0.1)
                 #print(lwrist_landmark.x)
                 if(prev_wrist_max_pos < lwrist_landmark.x):
+                    #print('end frame update')
                     prev_wrist_max_pos = lwrist_landmark.x
                     swing_end_frame = currentframe
                 #image = cv2.circle(image, left_ankle_coord, 20, (255, 0, 0), 3)
@@ -249,6 +261,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
         wrist_angular_vel = np.gradient(wrist_angle_data)
         elbow_angular_vel = np.gradient(elbow_angle_data)
 
+        
         torso_angular_vel_max = np.argmax(torso_angular_vel)
         hip_angular_vel_max = np.argmax(hip_angular_vel)
         wrist_angular_vel_max = np.argmax(wrist_angular_vel)
@@ -267,17 +280,17 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
 
         swing_length = swing_end_frame - swing_start_frame
 
-        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth))
-        print((np.argmax(hip_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
+        print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
 
-        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth))
-        print((np.argmax(torso_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))
+        print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
 
-        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth))
-        print((np.argmax(elbow_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))
+        print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
         
-        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth))
-        print((np.argmax(wrist_angular_vel_smooth) - swing_start_frame)/swing_length * 100.0, "%")
+        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))
+        print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
 
         print("swing start at frame ", swing_start_frame)
         print('swing end at frame ', swing_end_frame)
@@ -290,30 +303,45 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                         'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth})
         df.to_excel('results.xlsx', sheet_name='sheet1', index=False)
 
-        fig, axs = plt.subplots(2 ,4)
+        fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)
-        axs[0,0].set_title('hip turn')
+        axs[0,0].set_title('hip turn smooth')
 
-        axs[1,0].plot(framenumber, hip_angular_vel_smooth)
-        axs[1,0].set_title('hip angular velocity')
+        axs[1,0].plot(framenumber, hip_turn_data)
+        axs[1,0].set_title('hip turn')
+
+        axs[2,0].plot(framenumber, hip_angular_vel_smooth)
+        axs[2,0].set_title('hip angular velocity')
+
 
         axs[0,1].plot(framenumber, torso_turn_data_smooth)
-        axs[0,1].set_title('torso turn')
+        axs[0,1].set_title('torso turn smooth')
 
-        axs[1,1].plot(framenumber, torso_angular_vel_smooth)
-        axs[1,1].set_title('torso angular velocity')
+        axs[1,1].plot(framenumber, body_turn_data)
+        axs[1,1].set_title('torso turn')
+
+        axs[2,1].plot(framenumber, torso_angular_vel_smooth)
+        axs[2,1].set_title('torso angular velocity')
+
 
         axs[0,2].plot(framenumber, elbow_angle_data_smooth)
-        axs[0,2].set_title('elbow angle')
+        axs[0,2].set_title('elbow angle smooth')
 
-        axs[1,2].plot(framenumber, elbow_angular_vel_smooth)
-        axs[1,2].set_title('elbow angular velocity')
+        axs[1,2].plot(framenumber, elbow_angle_data)
+        axs[1,2].set_title('elbow angle')
+
+        axs[2,2].plot(framenumber, elbow_angular_vel_smooth)
+        axs[2,2].set_title('elbow angular velocity')
+
 
         axs[0,3].plot(framenumber, wrist_angle_data_smooth)
-        axs[0,3].set_title('wrist angle')
+        axs[0,3].set_title('wrist angle smooth')
 
-        axs[1,3].plot(framenumber, wrist_angular_vel_smooth)
-        axs[1,3].set_title('wrist angular velocity')
+        axs[1,3].plot(framenumber, wrist_angle_data)
+        axs[1,3].set_title('wrist angle')
+
+        axs[2,3].plot(framenumber, wrist_angular_vel_smooth)
+        axs[2,3].set_title('wrist angular velocity')
 
         """
         hip_angvel_graph = plt.figure(0)
