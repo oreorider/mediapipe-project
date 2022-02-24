@@ -1,4 +1,6 @@
 import cv2
+from matplotlib import offsetbox
+from matplotlib.text import OffsetFrom
 import mediapipe as mp
 import numpy as np
 from numpy import linalg as LA
@@ -11,11 +13,13 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "test99trim.mp4"
+video_name = "something.mp4"
 
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
+
+offset_frames = 0
 
 prev_elbow_angle = 0
 prev_wrist_angle = 0
@@ -75,7 +79,7 @@ def calculate_angle_3d(start, middle, end):
     return math.degrees(angle_rad)
     
 
-with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, enable_segmentation = True) as pose:
+with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.9, enable_segmentation = True) as pose:
     currentframe = 0
     cap = cv2.VideoCapture(video_name)
     
@@ -133,7 +137,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                     prev_elbow_angle = elbow_angle
                     prev_wrist_angle = wrist_angle
                 else:
-                    print('elbow angle ', elbow_angle)
+                    #print('elbow angle ', elbow_angle)
                     elbow_angle = prev_elbow_angle
                     wrist_angle = prev_wrist_angle
 
@@ -183,6 +187,8 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
                 framenumber.append(currentframe)
 
         except:
+            #print('offsetframe increase')
+            offset_frames+=1
             pass
         
         #make detection
@@ -213,7 +219,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
     cap.release()
     cv2.destroyAllWindows()
 
-
+    """
     hip_pos = np.zeros((3, len(hip_position)))
     shoulder_pos = np.zeros((3, len(shoulder_position)))
     wrist_pos = np.zeros((3, len(wrist_position)))
@@ -234,6 +240,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
         new_col = [wrist_data.x, wrist_data.y, wrist_data.z]
         wrist_pos[:, index] = new_col
         index+=1
+    """
 
     #if smooth, aka framerate always increments by 1, then ok to do gradient
     smooth = True
@@ -279,22 +286,27 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.5, e
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth, 3)
 
         swing_length = swing_end_frame - swing_start_frame
-
-        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
-        print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
-
-        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))
-        print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
-
-        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))
-        print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
         
-        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))
-        print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) - swing_start_frame)/swing_length * 100.0, "%")
+        print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
 
-        print("swing start at frame ", swing_start_frame)
-        print('swing end at frame ', swing_end_frame)
+        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
 
+        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+
+        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        
+        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+
+
+
+        print("swing start at frame ", swing_start_frame + offset_frames)
+        print('swing end at frame ', swing_end_frame + offset_frames)
+        print('offset frames', offset_frames)
+        framenumber = [a + offset_frames for a in framenumber]
 
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
