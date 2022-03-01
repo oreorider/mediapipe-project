@@ -1,6 +1,6 @@
 import cv2
-from matplotlib import offsetbox
-from matplotlib.text import OffsetFrom
+#from matplotlib import offsetbox
+#from matplotlib.text import OffsetFrom
 import mediapipe as mp
 import numpy as np
 from numpy import linalg as LA
@@ -13,7 +13,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "something.mp4"
+video_name = "testt.mp4"
 
 
 mp_drawing = mp.solutions.drawing_utils
@@ -79,7 +79,7 @@ def calculate_angle_3d(start, middle, end):
     return math.degrees(angle_rad)
     
 
-with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence = 0.9, enable_segmentation = True) as pose:
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, enable_segmentation = True) as pose:
     currentframe = 0
     cap = cv2.VideoCapture(video_name)
     
