@@ -13,8 +13,10 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "testt.mp4"
-
+video_name = "balldetect.mp4"
+CAMERA_FRAMREATE = 60
+#시뇌값
+pose_confidence_value = 0.9
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -29,19 +31,63 @@ swing_end_frame = 0
 prev_wrist_max_pos = 0
 framenumber = []
 
-hip_position = []
-shoulder_position = []
-wrist_position = []
+right_hip_position = []
+left_hip_position = []
+right_shoulder_position = []
+left_shoulder_position = []
+right_wrist_position = []
+left_wrist_position = []
+right_elbow_position = []
+left_elbow_position = []
 
 wrist_angle_data = []
 body_turn_data = []
 elbow_angle_data = []
 hip_turn_data = []
 
+ball_position = []
+
 
 #start = False
 start = True
 do_once = True
+
+class detection:
+    def __init__(self, frame, x, y):
+        self.frame = frame
+        self.x = x
+        self.y = y
+
+def ball_tracking(frame, frame_next, position, currentframe):
+    if not ret:
+        print("ball cannot be tracked")
+        return
+    diff = cv2.absdiff(frame, frame_next)
+    gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    _, movement_mask = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY) 
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lowerhsv = np.array([0, 177, 87])
+    upperhsv = np.array([40, 255, 255])
+
+    color_mask = cv2.inRange(hsv, lowerhsv, upperhsv)\
+    
+    combined_mask = cv2.bitwise_and(movement_mask, color_mask)
+    result = cv2.bitwise_and(frame, frame, mask = combined_mask)
+    dilated = cv2.dilate(combined_mask, None, iterations = 3)
+    contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        if cv2.contourArea(contour) < 100:
+             continue
+        (x,y), radius=cv2.minEnclosingCircle(contour)
+        center=(int(x), int(y))
+        radius=int(radius)
+        cv2.circle(result, center, radius, (0, 255, 0), 2)
+        position.append(detection(currentframe, x, y))
+    currentframe += 1
+
 def calculate_body_turn(shoulder_vec, hip_vec):
     v1=shoulder_vec/LA.norm(shoulder_vec)
     v2=hip_vec/LA.norm(hip_vec)
@@ -79,7 +125,7 @@ def calculate_angle_3d(start, middle, end):
     return math.degrees(angle_rad)
     
 
-with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, enable_segmentation = True) as pose:
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_confidence_value, enable_segmentation = True) as pose:
     currentframe = 0
     cap = cv2.VideoCapture(video_name)
     
@@ -87,10 +133,15 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
         width  = cap.get(3)
         height = cap.get(4)
         ret, frame = cap.read()
+        ret, frame_next = cap.read()
         
+        
+
         if not ret:
             print("can't receive frame. exiting")
             break
+
+        ball_tracking(frame, frame_next, ball_position, currentframe)
 
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
@@ -120,7 +171,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
                 lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
-                if(lwrist_landmark.visibility > 0.8):#only calculate elbow and wrist angle is wrist is visible
+                if(lwrist_landmark.visibility > 0.8):#only calculate elbow and wrist angle if wrist is visible
                     #calculate elbow angle
                     relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
                     lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
@@ -158,9 +209,15 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
                 
 
                 #capture datas
-                hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
-                shoulder_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value])
-                wrist_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value])
+                right_hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
+                left_hip_position.append(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+                right_shoulder_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value])
+                left_shoulder_position.append(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value])
+                right_wrist_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value])
+                left_wrist_position.append(landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value])
+                right_elbow_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
+                left_elbow_position.append(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value])
+
 
                 wrist_angle_data.append(wrist_angle)
                 hip_turn_data.append(hip_turn_angle)
@@ -219,6 +276,39 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
     cap.release()
     cv2.destroyAllWindows()
 
+    ball_x_pos = [data.x for data in ball_position]
+    ball_y_pos = [-data.y for data in ball_position]
+    framenumber_ball = [data.frame for data in ball_position]
+
+    fig, (axs1, axs2, ax3) = plt.subplots(3)
+    axs1.plot(framenumber_ball, ball_x_pos, '+')
+    axs1.set_title("x pos")
+
+    axs2.plot(framenumber_ball, ball_y_pos, 'o')
+    axs2.set_title("y pos")
+
+    ax3.plot(ball_x_pos, ball_y_pos, 'o')
+    ax3.set_title("xypos")
+
+    angle = []
+    speed = []
+    
+
+    trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
+    #trimmed_y = ball_position[:swing_end_frame-ball_position[0].frame]
+    for index in range(len(trimmed_xy)-1):
+        delta_y = -(trimmed_xy[index+1].y - trimmed_xy[index].y)
+        delta_x = trimmed_xy[index+1].x - trimmed_xy[index].x
+        angle.append(np.arctan(delta_y/delta_x)*(180/math.pi))
+        speed.append(np.sqrt(delta_x**2 + delta_y**2)/((trimmed_xy[index+1].frame - trimmed_xy[index].frame)))
+        
+
+    #angle = [np.arctan(grad_x/grad_y)]
+    print("==================")
+    print("공 각도 (degrees) ", np.average(angle))
+    print("공 속도 (pixels/frame) ", np.average(speed))
+    print("")
+
     """
     hip_pos = np.zeros((3, len(hip_position)))
     shoulder_pos = np.zeros((3, len(shoulder_position)))
@@ -248,14 +338,14 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
         if framenumber[x+1]-framenumber[x]==1:
             continue
         else:
-            smooth = False
+            #smooth = False
             break
     
     #if data is smooth, calculate acceleration
     if smooth:
         """
         hip_accel = np.gradient(np.gradient(hip_pos, axis=1), axis=1)
-        shoulder_accel = np.gradient(np.gradient(shoulder_pos, axis=1), axis=1)
+        shoulder_accel = np.gradient(np.grfdient(shoulder_pos, axis=1), axis=1)
         wrist_accel = np.gradient(np.gradient(wrist_pos, axis=1), axis=1)
         
         hip_accel_norm = LA.norm(hip_accel, axis=0)
@@ -287,33 +377,52 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = 0.9, e
 
         swing_length = swing_end_frame - swing_start_frame
         
-        print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
+        #print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
 
         print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
         print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        print("")
 
         print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
         print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        print("")
 
         print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
         print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-        
+        print("")
+
         print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
         print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-
+        print("")
 
 
         print("swing start at frame ", swing_start_frame + offset_frames)
         print('swing end at frame ', swing_end_frame + offset_frames)
-        print('offset frames', offset_frames)
+        #print('offset frames', offset_frames)
         framenumber = [a + offset_frames for a in framenumber]
 
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
                         'torso angle no smoothing': body_turn_data, 'torso angle with smoothing': torso_turn_data_smooth, 'torso angular velocity (from smooth)': torso_angular_vel_smooth,
                         'wrist angle no smoothing': wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
-                        'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth})
+                        'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth
+                        })
         df.to_excel('results.xlsx', sheet_name='sheet1', index=False)
+
+        df = DataFrame({'Frame' : framenumber,
+                        'right hip x' : [data.x for data in right_hip_position], 'right hip y' : [data.y for data in right_hip_position], 'right hip z' : [data.z for data in right_hip_position],
+                        'left hip x' : [data.x for data in left_hip_position], 'left hip y' : [data.y for data in left_hip_position], 'left hip z' : [data.z for data in left_hip_position],
+
+                        'right shoulder x' : [data.x for data in right_shoulder_position], 'right shoulder y' : [data.y for data in right_shoulder_position], 'right shoulder z' : [data.z for data in right_shoulder_position], 
+                        'left shoulder x' : [data.x for data in left_shoulder_position], 'left shoulder y' : [data.y for data in left_shoulder_position], 'left shoulder z' : [data.z for data in left_shoulder_position],
+
+                        'right wrist x' : [data.x for data in right_wrist_position], 'right wrist y' : [data.y for data in right_wrist_position], 'right wrist z' : [data.z for data in right_wrist_position],
+                        'left wrist x' : [data.x for data in left_wrist_position], 'left wrist y' : [data.y for data in left_wrist_position], 'left wrist z' : [data.z for data in left_wrist_position],
+
+                        'right elbow x' : [data.x for data in right_elbow_position], 'right elbow y' : [data.y for data in right_elbow_position], 'right elbow z' : [data.z for data in right_elbow_position],
+                        'left elbow x' : [data.x for data in left_elbow_position], 'left elbow y' : [data.y for data in left_elbow_position], 'left elbow z' : [data.z for data in left_elbow_position]
+                        })
+        df.to_excel('coordinates.xlsx', sheet_name= 'sheet1', index=False)
 
         fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)

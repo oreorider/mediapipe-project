@@ -15,7 +15,8 @@ class detection:
 
 def nothing(x):
     pass
-cap = cv2.VideoCapture("realtest.mp4")
+cap = cv2.VideoCapture("balldetect.mp4")
+#cap = cv2.VideoCapture(0)
 
 cv2.namedWindow('Tracking')
 
@@ -23,7 +24,7 @@ cv2.createTrackbar('lower hue', 'Tracking', 0, 179 ,nothing)
 cv2.createTrackbar('lower sat', 'Tracking', 0, 255, nothing)
 cv2.createTrackbar('lower val', 'Tracking', 0, 255, nothing)
 
-cv2.createTrackbar('upper hue', 'Tracking', 179, 255, nothing)
+cv2.createTrackbar('upper hue', 'Tracking', 179, 179, nothing)
 cv2.createTrackbar('upper sat', 'Tracking', 255, 255, nothing)
 cv2.createTrackbar('upper val', 'Tracking', 255, 255, nothing)
 
@@ -52,8 +53,8 @@ while True:
     upper_sat=cv2.getTrackbarPos('upper sat', 'Tracking')
     upper_val=cv2.getTrackbarPos('upper val', 'Tracking')
     
-    lowerhsv = np.array([21, 26, 113])
-    upperhsv = np.array([83, 177, 196])
+    lowerhsv = np.array([0, 177, 87])
+    upperhsv = np.array([40, 255, 255])
     #lowerhsv = np.array([lower_hue, lower_sat, lower_val])
     #upperhsv = np.array([upper_hue, upper_sat, upper_val])
     color_mask = cv2.inRange(hsv, lowerhsv, upperhsv)\
