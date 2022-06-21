@@ -13,7 +13,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "balldetect.mp4"
+video_name = "h1-1.mp4"
 CAMERA_FRAMREATE = 60
 #시뇌값
 pose_confidence_value = 0.9
@@ -58,7 +58,7 @@ class detection:
         self.x = x
         self.y = y
 
-def ball_tracking(frame, frame_next, position, currentframe):
+def ball_tracking(ret, frame, frame_next, position, currentframe):
     if not ret:
         print("ball cannot be tracked")
         return
@@ -79,14 +79,19 @@ def ball_tracking(frame, frame_next, position, currentframe):
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     for contour in contours:
-        if cv2.contourArea(contour) < 100:
+        if cv2.contourArea(contour) < 300:
              continue
         (x,y), radius=cv2.minEnclosingCircle(contour)
         center=(int(x), int(y))
         radius=int(radius)
         cv2.circle(result, center, radius, (0, 255, 0), 2)
         position.append(detection(currentframe, x, y))
-    currentframe += 1
+
+    cv2.imshow("frame", frame)
+    cv2.imshow("color mask", color_mask)
+    cv2.imshow("movement mask", movement_mask)
+    cv2.imshow("result", result)
+    #currentframe += 1
 
 def calculate_body_turn(shoulder_vec, hip_vec):
     v1=shoulder_vec/LA.norm(shoulder_vec)
@@ -141,7 +146,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
             print("can't receive frame. exiting")
             break
 
-        ball_tracking(frame, frame_next, ball_position, currentframe)
+        ball_tracking(ret, frame, frame_next, ball_position, currentframe)
 
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
@@ -240,12 +245,14 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #image = cv2.circle(image, left_ankle_coord, 20, (255, 0, 0), 3)
                 #image = cv2.circle(image, right_foot_coord, 20, (0, 255, 0), 3)
                 #image = cv2.circle(image, (width*0.1, height*0.9), 20, (255,0,0), 3)
-                currentframe += 1
+                
                 framenumber.append(currentframe)
+                currentframe += 1
 
         except:
             #print('offsetframe increase')
             offset_frames+=1
+            currentframe+=1
             pass
         
         #make detection
@@ -296,11 +303,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
     #trimmed_y = ball_position[:swing_end_frame-ball_position[0].frame]
-    for index in range(len(trimmed_xy)-1):
+    for index in range(len(trimmed_xy)-2):
         delta_y = -(trimmed_xy[index+1].y - trimmed_xy[index].y)
         delta_x = trimmed_xy[index+1].x - trimmed_xy[index].x
         angle.append(np.arctan(delta_y/delta_x)*(180/math.pi))
-        speed.append(np.sqrt(delta_x**2 + delta_y**2)/((trimmed_xy[index+1].frame - trimmed_xy[index].frame)))
+        print("index+1 frame", trimmed_xy[index+1].frame)
+        print("index frame", trimmed_xy[index].frame)
+        print("")
+        if (trimmed_xy[index+1].frame != trimmed_xy[index].frame):
+            speed.append(np.sqrt(delta_x**2 + delta_y**2)/((trimmed_xy[index+1].frame - trimmed_xy[index].frame)))
+       
         
 
     #angle = [np.arctan(grad_x/grad_y)]
