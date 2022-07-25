@@ -39,6 +39,12 @@ right_wrist_position = []
 left_wrist_position = []
 right_elbow_position = []
 left_elbow_position = []
+right_knee_position = []
+left_knee_position = []
+right_ankle_position = []
+left_ankle_position = []
+right_foot_position = []
+left_foot_position = []
 
 wrist_angle_data = []
 body_turn_data = []
@@ -222,7 +228,18 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 left_wrist_position.append(landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value])
                 right_elbow_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
                 left_elbow_position.append(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value])
+                
+                #right/left knee
+                right_knee_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value])
+                left_knee_position.append(landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value])
 
+                #right/left ankle
+                right_ankle_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+                left_ankle_position.append(landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+
+                #right/left foot
+                right_foot_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value])
+                left_foot_position.append(landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value])
 
                 wrist_angle_data.append(wrist_angle)
                 hip_turn_data.append(hip_turn_angle)
@@ -327,7 +344,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     wrist_pos = np.zeros((3, len(wrist_position)))
     index=0
     print(np.shape(hip_turn_data))
-
     for hip_data in hip_position:
         new_col = [hip_data.x, hip_data.y, hip_data.z]
         hip_pos[:, index] = new_col
@@ -432,7 +448,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'left wrist x' : [data.x for data in left_wrist_position], 'left wrist y' : [data.y for data in left_wrist_position], 'left wrist z' : [data.z for data in left_wrist_position],
 
                         'right elbow x' : [data.x for data in right_elbow_position], 'right elbow y' : [data.y for data in right_elbow_position], 'right elbow z' : [data.z for data in right_elbow_position],
-                        'left elbow x' : [data.x for data in left_elbow_position], 'left elbow y' : [data.y for data in left_elbow_position], 'left elbow z' : [data.z for data in left_elbow_position]
+                        'left elbow x' : [data.x for data in left_elbow_position], 'left elbow y' : [data.y for data in left_elbow_position], 'left elbow z' : [data.z for data in left_elbow_position],
+
+                        'right knee x' : [data.x for data in right_knee_position], 'right knee y' : [data.y for data in right_knee_position], 'right knee z' : [data.z for data in right_knee_position],
+                        'left knee x' : [data.x for data in left_knee_position], 'left knee y' : [data.y for data in left_knee_position], 'left knee z' : [data.z for data in left_knee_position],
+
+                        'right ankle x' : [data.x for data in right_ankle_position], 'right ankle y' : [data.y for data in right_ankle_position], 'right ankle z' : [data.z for data in right_ankle_position],
+                        'left ankle x' : [data.x for data in left_ankle_position], 'left ankle y' : [data.y for data in left_ankle_position], 'left ankle z' : [data.z for data in left_ankle_position],
+
+                        'right foot x' : [data.x for data in right_foot_position], 'right foot y' : [data.y for data in right_foot_position], 'right foot z': [data.z for data in right_foot_position],
+                        'left foot x' : [data.x for data in left_foot_position], 'left foot y' : [data.y for data in left_foot_position], 'left foot z' : [data.z for data in left_foot_position]
                         })
         df.to_excel('coordinates.xlsx', sheet_name= 'sheet1', index=False)
 
@@ -484,30 +509,24 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         torso_angvel_graph = plt.figure(1)
         plt.scatter(framenumber, torso_angular_vel_smooth)
         plt.title("torso angular velocity with smoothing")
-
         wrist_angvel_graph = plt.figure(2)
         plt.scatter(framenumber, wrist_angular_vel_smooth)
         plt.title("wrist angular velocity with smoothing")
-
         elbow_angvel_graph = plt.figure(3)
         plt.scatter(framenumber, elbow_angular_vel_smooth)
         plt.title("elbow angular velocity with smoothing")
-
         hip_turn_graph = plt.figure(4)
         plt.scatter(framenumber, hip_turn_data_smooth)
         plt.scatter(framenumber, hip_turn_data)
         plt.title("hip turn blue = smoothed")
-
         torso_turn_graph = plt.figure(6)
         plt.scatter(framenumber, torso_turn_data_smooth)
         plt.scatter(framenumber, body_turn_data)
         plt.title("torso turn blue = smoothed")
-
         elbow_angle_graph = plt.figure(7)
         plt.scatter(framenumber, elbow_angle_data_smooth)
         plt.scatter(framenumber, elbow_angle_data)
         plt.title("elbow angle data blue = smoothed")
-
         wrist_angle_graph = plt.figure(8)
         plt.scatter(framenumber, wrist_angle_data_smooth)
         plt.scatter(framenumber, wrist_angle_data)
