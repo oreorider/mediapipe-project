@@ -13,7 +13,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "h1-1.mp4"
+video_name = "cropped.mp4."
 CAMERA_FRAMREATE = 60
 #시뇌값
 pose_confidence_value = 0.9
@@ -50,6 +50,23 @@ wrist_angle_data = []
 body_turn_data = []
 elbow_angle_data = []
 hip_turn_data = []
+
+r_ankle_angle_data = []
+l_ankle_angle_data = []
+
+r_elbow_angle_data = []
+l_elbow_angle_data = []
+
+r_knee_angle_data = []
+l_knee_angle_data = []
+
+r_should_sag_data = []
+r_should_front_data = []
+r_should_horiz_data = []
+
+l_should_sag_data = []
+l_should_front_data = []
+l_should_horiz_data = []
 
 ball_position = []
 
@@ -97,6 +114,8 @@ def ball_tracking(ret, frame, frame_next, position, currentframe):
     cv2.imshow("color mask", color_mask)
     cv2.imshow("movement mask", movement_mask)
     cv2.imshow("result", result)
+    if(len(position) == 0): 
+        position.append(detection(0, 0, 0))
     #currentframe += 1
 
 def calculate_body_turn(shoulder_vec, hip_vec):
@@ -143,7 +162,7 @@ def calculate_angle_3d(start, middle, end):
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_confidence_value, enable_segmentation = True) as pose:
     currentframe = 0
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(video_name)
     
     while cap.isOpened():
         width  = cap.get(3)
@@ -216,8 +235,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                     r_elbow_angle = calculate_angle_3d(np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z]),
                     np.array([relbow_landmark.x, relbow_landmark.y, relbow_landmark.z]), np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z]))
 
-                    print('right elbow angle : ', r_elbow_angle, '\t\tleft elbow angle : ', l_elbow_angle)
-                    
+                    #print('right elbow angle : ', r_elbow_angle, '\t\tleft elbow angle : ', l_elbow_angle)
+                    r_elbow_angle_data.append(r_elbow_angle)
+                    l_elbow_angle_data.append(l_elbow_angle)
 
                     
                     #calculate wrist angle
@@ -266,26 +286,36 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 r_ankle_sagittal = findangle(r_fibula_vec, r_footdir_vec)
                 l_ankle_sagittal = findangle(l_fibula_vec, l_footdir_vec)
                 #print('right ankle angle ', r_ankle_sagittal, '\t left ankle angle ', l_ankle_sagittal)
+                r_ankle_angle_data.append(r_ankle_sagittal)
+                l_ankle_angle_data.append(l_ankle_sagittal)
 
                 #calculate knee flexion extension
                 r_knee_sagittal = findangle(r_femur_vec, r_fibula_vec)
                 l_knee_sagittal = findangle(l_femur_vec, l_fibula_vec)
+                r_knee_angle_data.append(r_knee_saggital)
+                l_knee_angle_data.append(l_knee_saggital)
                 #print('right knee angle: ', r_knee_sagittal, '\tleft knee sagittal: ', l_knee_sagittal)
 
                 #calculate abduction/adduction
                 r_shoulder_frontal = findangle([r_hum_vec[0], r_hum_vec[1]], [body_vec[0], body_vec[1]]) #only use x,y
                 l_shoulder_frontal = findangle([l_hum_vec[0], l_hum_vec[1]], [body_vec[0], body_vec[1]])
                 #print('right frontal: ', r_shoulder_frontal, '\tl_shoulder_frontal', l_shoulder_frontal)
+                r_should_front_data.append(r_shoulder_frontal)
+                l_should_front_data.append(l_shoulder_frontal)
 
                 #calculate flexion extenion
                 r_shoulder_sagittal = findangle([r_hum_vec[1], r_hum_vec[2]], [body_vec[1], body_vec[2]]) #only use y,z
                 l_shoulder_sagittal = findangle([l_hum_vec[1], l_hum_vec[2]], [body_vec[1], body_vec[2]])
                 #print('right sagittal ', r_shoulder_sagittal)
+                r_should_sag_data.append(r_shoulder_sagittal)
+                l_should_sag_data.append(l_shoulder_saggital)
 
                 #calculate horizontal abduction/adduction
                 r_shoulder_horizontal = findangle([r_hum_vec[0], r_hum_vec[2]], [body_vec[0], body_vec[2]]) #only use x,z
                 l_shoulder_horizontal = findangle([l_hum_vec[0], l_hum_vec[2]], [body_vec[0], body_vec[2]])
                 #print('right horizontal ', r_shoulder_horizontal, '\tleft horiziontal ',l_shoulder_horizontal)
+                r_should_horiz_data.append(r_shoulder_horizontal)
+                l_should_horiz_data.append(l_shoulder_horizontal)
 
                 #calculate body turn
                 shoulder_vec = np.array([rshoulder_landmark.x - lshoulder_landmark.x, rshoulder_landmark.z - lshoulder_landmark.z])
@@ -392,7 +422,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     angle = []
     speed = []
     
-
+    print('swing end frame : ', swing_end_frame)
+    print('ball pos start : ', ball_position[0].frame)
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
     #trimmed_y = ball_position[:swing_end_frame-ball_position[0].frame]
     for index in range(len(trimmed_xy)-2):
@@ -535,6 +566,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'left foot x' : [data.x for data in left_foot_position], 'left foot y' : [data.y for data in left_foot_position], 'left foot z' : [data.z for data in left_foot_position]
                         })
         df.to_excel('coordinates.xlsx', sheet_name= 'sheet1', index=False)
+
+        df = DataFrame({'right ankle sagittal' : r_ankle_angle_data, 'left ankle sagittal' : l_ankle_angle_data,
+                        'right elbow sagittal' : r_elbow_angle_data, 'left elbow sagittal' : l_elbow_angle_data,
+                        'right knee sagittal' : r_knee_angle_data, 'left knee sagittal' : l_knee_angle_data,
+                        'right shoulder sagittal' : r_should_sag_data, 'left shoulder sagittal' : l_should_sag_data,
+                        'right shoulder horiz' : r_should_horiz_data, 'left shoulder horiz' : l_should_horiz_data,
+                        'right shoulder frontal' : r_should_front_data, 'left shoulder frontal' : l_should_front_data,
+                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data
+                        })
+        df.to_excel('angle.xlsx', sheet_name = 'sheet1', index = False)
 
         fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)
