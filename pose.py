@@ -13,7 +13,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "protest.mp4."
+video_name = "testvideo.mp4."
 CAMERA_FRAMREATE = 60
 #시뇌값
 pose_confidence_value = 0.9
@@ -67,6 +67,12 @@ r_should_horiz_data = []
 l_should_sag_data = []
 l_should_front_data = []
 l_should_horiz_data = []
+
+r_hip_sag_data = []
+l_hip_sag_data = []
+
+r_hip_horiz_data = []
+l_hip_horiz_data = []
 
 ball_position = []
 
@@ -123,7 +129,7 @@ def calculate_body_turn(shoulder_vec, hip_vec):
     res = np.dot(v1, v2)
     #print('dot prod for body is : ', res)
     angle_rad = np.arccos(res)
-    print('body angle : ', math.degrees(angle_rad))
+    #print('body angle : ', math.degrees(angle_rad))
     #if(np.cross(v1, v2)<0):
     #    return -1*math.degrees(angle_rad)
     return math.degrees(angle_rad)
@@ -317,7 +323,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #print('hip vec : ', hip_vec, '\t shoulder vec : ', shoulder_vec)
                 body_turn_angle = calculate_body_turn(hip_vec, shoulder_vec)
                 
-                
+                #calculate hip flexion extension
+                r_hip_sagittal = 180 - findangle([r_femur_vec[1], r_femur_vec[2]], [body_vec[1], body_vec[2]]) #use only y,z
+                l_hip_sagittal = 180 - findangle([l_femur_vec[1], l_femur_vec[2]], [body_vec[1], body_vec[2]]) #use only y,z
+                r_hip_sag_data.append(r_hip_sagittal)
+                l_hip_sag_data.append(l_hip_sagittal)
+                print('rhip sagittal : ', r_hip_sagittal)
+                print('lhip sagittal : ', l_hip_sagittal)
+
+                #calculate hip pronation supination
+                r_hip_horizontal = 180 - findangle([r_femur_vec[0], r_femur_vec[1]], [body_vec[0], body_vec[1]]) # use only x,y
+                l_hip_horizontal = 180 - findangle([l_femur_vec[0], l_femur_vec[1]], [body_vec[0], body_vec[1]]) # use only x,y
+                r_hip_horiz_data.append(r_hip_horizontal)
+                l_hip_horiz_data.append(l_hip_horizontal)
+                print('rhip horiz : ', r_hip_horizontal)
+                print('lhip horiz : ', l_hip_horizontal)
 
                 #capture datas
                 right_hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
@@ -344,7 +364,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 wrist_angle_data.append(wrist_angle)
                 hip_turn_data.append(hip_turn_angle)
 
-                print('body turn angle is : ', body_turn_angle)
+                #print('body turn angle is : ', body_turn_angle)
                 body_turn_data.append(body_turn_angle)
                 elbow_angle_data.append(l_elbow_angle)
 
@@ -428,6 +448,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     for index in range(len(trimmed_xy)-2):
         delta_y = -(trimmed_xy[index+1].y - trimmed_xy[index].y)
         delta_x = trimmed_xy[index+1].x - trimmed_xy[index].x
+        if delta_x == 0:
+            continue
         angle.append(np.arctan(delta_y/delta_x)*(180/math.pi))
         print("index+1 frame", trimmed_xy[index+1].frame)
         print("index frame", trimmed_xy[index].frame)
@@ -573,7 +595,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'right shoulder sagittal' : r_should_sag_data, 'left shoulder sagittal' : l_should_sag_data,
                         'right shoulder horiz' : r_should_horiz_data, 'left shoulder horiz' : l_should_horiz_data,
                         'right shoulder frontal' : r_should_front_data, 'left shoulder frontal' : l_should_front_data,
-                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data
+                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data, 'wrist angle' : wrist_angle_data,
+                        'right hip sagittal' : r_hip_sag_data, 'left hip sagittal' : l_hip_sag_data,
+                        'right hip horizontal' : r_hip_horiz_data, 'left hip horizontal': l_hip_horiz_data
                         })
         df.to_excel('angle.xlsx', sheet_name = 'sheet1', index = False)
 
