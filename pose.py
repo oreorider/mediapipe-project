@@ -1,3 +1,5 @@
+
+
 import cv2
 #from matplotlib import offsetbox
 #from matplotlib.text import OffsetFrom
@@ -13,7 +15,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "testvideo.mp4."
+video_name = "c8-6.mp4."
 CAMERA_FRAMREATE = 60
 #시뇌값
 pose_confidence_value = 0.9
@@ -328,16 +330,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 l_hip_sagittal = 180 - findangle([l_femur_vec[1], l_femur_vec[2]], [body_vec[1], body_vec[2]]) #use only y,z
                 r_hip_sag_data.append(r_hip_sagittal)
                 l_hip_sag_data.append(l_hip_sagittal)
-                print('rhip sagittal : ', r_hip_sagittal)
-                print('lhip sagittal : ', l_hip_sagittal)
+                #print('rhip sagittal : ', r_hip_sagittal)
+                #print('lhip sagittal : ', l_hip_sagittal)
 
                 #calculate hip pronation supination
                 r_hip_horizontal = 180 - findangle([r_femur_vec[0], r_femur_vec[1]], [body_vec[0], body_vec[1]]) # use only x,y
                 l_hip_horizontal = 180 - findangle([l_femur_vec[0], l_femur_vec[1]], [body_vec[0], body_vec[1]]) # use only x,y
                 r_hip_horiz_data.append(r_hip_horizontal)
                 l_hip_horiz_data.append(l_hip_horizontal)
-                print('rhip horiz : ', r_hip_horizontal)
-                print('lhip horiz : ', l_hip_horizontal)
+                #print('rhip horiz : ', r_hip_horizontal)
+                #print('lhip horiz : ', l_hip_horizontal)
 
                 #capture datas
                 right_hip_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
@@ -444,6 +446,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     print('swing end frame : ', swing_end_frame)
     print('ball pos start : ', ball_position[0].frame)
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
+    print('trimmed xy : ', len(ball_position))
     #trimmed_y = ball_position[:swing_end_frame-ball_position[0].frame]
     for index in range(len(trimmed_xy)-2):
         delta_y = -(trimmed_xy[index+1].y - trimmed_xy[index].y)
@@ -557,13 +560,17 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         #print('offset frames', offset_frames)
         framenumber = [a + offset_frames for a in framenumber]
 
+        result_name = 'result_{}.xlsx'.format(video_name)
+        coordinate_name = 'coordinate_{}.xlsx'.format(video_name)
+        angle_name = 'angle_{}.xlsx'.format(video_name)
+
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
                         'torso angle no smoothing': body_turn_data, 'torso angle with smoothing': torso_turn_data_smooth, 'torso angular velocity (from smooth)': torso_angular_vel_smooth,
                         'wrist angle no smoothing': wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
                         'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth
                         })
-        df.to_excel('results.xlsx', sheet_name='sheet1', index=False)
+        df.to_excel(result_name, sheet_name='sheet1', index=False)
         
         df = DataFrame({'Frame' : framenumber,
                         'right hip x' : [data.x for data in right_hip_position], 'right hip y' : [data.y for data in right_hip_position], 'right hip z' : [data.z for data in right_hip_position],
@@ -587,7 +594,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'right foot x' : [data.x for data in right_foot_position], 'right foot y' : [data.y for data in right_foot_position], 'right foot z': [data.z for data in right_foot_position],
                         'left foot x' : [data.x for data in left_foot_position], 'left foot y' : [data.y for data in left_foot_position], 'left foot z' : [data.z for data in left_foot_position]
                         })
-        df.to_excel('coordinates.xlsx', sheet_name= 'sheet1', index=False)
+        df.to_excel(coordinate_name, sheet_name= 'sheet1', index=False)
 
         df = DataFrame({'right ankle sagittal' : r_ankle_angle_data, 'left ankle sagittal' : l_ankle_angle_data,
                         'right elbow sagittal' : r_elbow_angle_data, 'left elbow sagittal' : l_elbow_angle_data,
@@ -599,7 +606,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'right hip sagittal' : r_hip_sag_data, 'left hip sagittal' : l_hip_sag_data,
                         'right hip horizontal' : r_hip_horiz_data, 'left hip horizontal': l_hip_horiz_data
                         })
-        df.to_excel('angle.xlsx', sheet_name = 'sheet1', index = False)
+        df.to_excel(angle_name, sheet_name = 'sheet1', index = False)
 
         fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)
@@ -675,3 +682,4 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         plt.show()
     else:
         print('camera missed some frames and was not able to do analysis')
+
