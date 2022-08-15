@@ -1,5 +1,3 @@
-
-
 import cv2
 #from matplotlib import offsetbox
 #from matplotlib.text import OffsetFrom
@@ -28,6 +26,8 @@ offset_frames = 0
 prev_elbow_angle = 0
 prev_wrist_angle = 0
 
+highest_foot_pos = 1
+backswing_start_frame = 0
 swing_start_frame = 0
 swing_end_frame = 0
 prev_wrist_max_pos = 0
@@ -205,6 +205,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
             if True:
                 #print('*****************')
                 #right left hip landmark
+
+
                 rhip_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value]
                 lhip_landmark = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value]
 
@@ -373,12 +375,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 
                 #print("hip angle ", hip_turn_angle)
                 #left_ankle_coord = (int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].x * width), int(landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y * height))
-                #right_foot_coord = (int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * width), int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y * height))
+                right_foot_coord = (int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * width), int(landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y * height))
                 #left_wrist_coord = (int(landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x * width),  int(landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y * height))
                 #print("right foot y pos ", rfoot_landmark.y)
                 
-                if((landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y < landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) and swing_start_frame==0):
+                #if((landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y < landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) and swing_start_frame==0):
+                #    swing_start_frame = currentframe
+
+                #print('ankle y pos : ', lankle_landmark.y)
+                if(lankle_landmark.y < highest_foot_pos):
+                    highest_foot_pos = lankle_landmark.y
                     swing_start_frame = currentframe
+                    print('swing start frame update')
+                    
+                else:
+                    print('no update')
                 #time.sleep(0.1)
                 #print(lwrist_landmark.x)
                 if(prev_wrist_max_pos < lwrist_landmark.x):
@@ -391,6 +402,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 
                 framenumber.append(currentframe)
                 currentframe += 1
+                #if(currentframe == 470):
+                #    time.sleep(5)
 
         except:
             #print('offsetframe increase')
@@ -443,6 +456,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     angle = []
     speed = []
     
+    #find backswing start frame
+    ankle_delta = left_ankle_position[0].y - left_ankle_position[swing_start_frame].y
+    backswing_start_y = left_ankle_position[0].y - ankle_delta*0.2
+
+    print('ankle delta : ', ankle_delta)
+    print('backswing start y pos : ', backswing_start_y)
+    for index in range(swing_start_frame, -1, -1):
+        if(left_ankle_position[index].y < backswing_start_y):
+            continue #ignore number, need to find number that is greater than our target ankle pos y
+        else:
+            backswing_start_frame = index
+            break
+
+    print('backswing start frame : ', backswing_start_frame)
+    print('swing start frame : ', swing_start_frame)
     print('swing end frame : ', swing_end_frame)
     print('ball pos start : ', ball_position[0].frame)
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
