@@ -21,7 +21,7 @@ import config
 video_name = config.video_name
 
 CAMERA_FRAMREATE = 60
-#시뇌값
+#신뢰값
 pose_confidence_value = 0.9
 
 mp_drawing = mp.solutions.drawing_utils
