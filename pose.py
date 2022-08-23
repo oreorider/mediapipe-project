@@ -13,14 +13,12 @@ import math
 from pandas import DataFrame
 import config
 
-#video_name = "noobtest.mp4"
 import select_region
 
 
 
 video_name = config.video_name
 
-CAMERA_FRAMREATE = 60
 #신뢰값
 pose_confidence_value = 0.9
 
