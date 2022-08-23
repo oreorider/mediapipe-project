@@ -5,6 +5,7 @@ import mediapipe as mp
 import numpy as np
 from numpy import linalg as LA, r_
 from scipy.signal import savgol_filter
+from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import time
 import math
@@ -13,8 +14,7 @@ from pandas import DataFrame
 import config
 
 #video_name = "noobtest.mp4"
-import testopencv
-import config
+import select_region
 
 
 
@@ -23,6 +23,8 @@ video_name = config.video_name
 CAMERA_FRAMREATE = 60
 #신뢰값
 pose_confidence_value = 0.9
+
+meter_per_pixel = config.base_length/abs(config.box_end[0] - config.box_start[0])
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -88,6 +90,33 @@ ball_position = []
 #start = False
 start = True
 do_once = True
+
+class Highlighter(object):
+    def __init__(self, ax, x, y):
+        self.ax = ax
+        self.canvas = ax.figure.canvas
+        self.x, self.y = x, y
+        self.mask = np.zeros(x.shape, dtype=bool)
+
+        self._highlight = ax.scatter([], [], s=200, color='yellow', zorder=10)
+
+        self.selector = RectangleSelector(ax, self, useblit=True)
+
+    def __call__(self, event1, event2):
+        self.mask |= self.inside(event1, event2)
+        xy = np.column_stack([self.x[self.mask], self.y[self.mask]])
+        self._highlight.set_offsets(xy)
+        self.canvas.draw()
+
+    def inside(self, event1, event2):
+        """Returns a boolean mask of the points inside the rectangle defined by
+        event1 and event2."""
+        # Note: Could use points_inside_poly, as well
+        x0, x1 = sorted([event1.xdata, event2.xdata])
+        y0, y1 = sorted([event1.ydata, event2.ydata])
+        mask = ((self.x > x0) & (self.x < x1) &
+                (self.y > y0) & (self.y < y1))
+        return mask
 
 class detection:
     def __init__(self, frame, x, y):
@@ -213,7 +242,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #print('*****************')
                 #right left hip landmark
 
-
+                
                 rhip_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value]
                 lhip_landmark = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value]
 
@@ -449,9 +478,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     cap.release()
     cv2.destroyAllWindows()
 
-    ball_x_pos = [data.x for data in ball_position]
-    ball_y_pos = [-data.y for data in ball_position]
-    framenumber_ball = [data.frame for data in ball_position]
+    ball_x_pos = np.array([data.x for data in ball_position])
+    ball_y_pos = np.array([-data.y for data in ball_position])
+    framenumber_ball = np.array([data.frame for data in ball_position])
 
     fig, (axs1, axs2, ax3) = plt.subplots(3)
     axs1.plot(framenumber_ball, ball_x_pos, '+')
@@ -462,6 +491,37 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
     ax3.plot(ball_x_pos, ball_y_pos, 'o')
     ax3.set_title("xypos")
+
+    Highlighter = Highlighter(ax3, ball_x_pos, ball_y_pos)
+    plt.show()
+    selected_region = Highlighter.mask
+    #print(ball_x_pos[selected_region], ball_y_pos[selected_region])
+    
+    selected_x = ball_x_pos[selected_region]
+    selected_y = ball_y_pos[selected_region]
+
+    numpoints = len(selected_x)
+    avg_delta_x = np.average(selected_x)
+    avg_delta_y = np.average(selected_y)
+    avg_angle = np.arctan(avg_delta_y/avg_delta_x)*(180/math.pi)
+    print('==============================')
+    print('avg ball angle is : ', avg_angle)
+    selected_frames = framenumber_ball[selected_region]
+    
+
+    dx = np.diff(selected_x)
+    dy = np.diff(selected_y)
+    #print(np.shape(dx))
+    #print(np.shape(np.stack((dx, dy), axis=0)))
+    dframe = np.diff(selected_frames)
+    dists = LA.norm(np.stack((dx, dy)), axis = 0)
+    #print(np.shape(dists))
+    speeds = dists/dframe
+    avg_speed = np.average(speeds)
+    print('avg speed in pixels per frame is :', avg_speed)
+    avg_speed_meter_per_second = avg_speed * meter_per_pixel * config.frame_per_second
+    print('avg speed in meter per second is : ', avg_speed_meter_per_second)
+
 
     angle = []
     speed = []
@@ -483,6 +543,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     print('swing start frame : ', swing_start_frame)
     print('swing end frame : ', swing_end_frame)
     print('ball pos start : ', ball_position[0].frame)
+    """
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
     print('trimmed xy : ', len(ball_position))
     #trimmed_y = ball_position[:swing_end_frame-ball_position[0].frame]
@@ -497,7 +558,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         #print("")
         if (trimmed_xy[index+1].frame != trimmed_xy[index].frame):
             speed.append(np.sqrt(delta_x**2 + delta_y**2)/((trimmed_xy[index+1].frame - trimmed_xy[index].frame)))
-       
+    
         
 
     #angle = [np.arctan(grad_x/grad_y)]
@@ -505,6 +566,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     print("공 각도 (degrees) ", np.average(angle))
     print("공 속도 (pixels/frame) ", np.average(speed))
     print("")
+    """
 
     """
     hip_pos = np.zeros((3, len(hip_position)))
@@ -559,16 +621,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         hip_angular_vel_max = np.argmax(hip_angular_vel)
         wrist_angular_vel_max = np.argmax(wrist_angular_vel)
 
-        hip_turn_data_smooth = savgol_filter(hip_turn_data, 20, 3)
+        hip_turn_data_smooth = savgol_filter(hip_turn_data, 11, 3)
         hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth, 3)
 
-        torso_turn_data_smooth = savgol_filter(body_turn_data, 20, 3)
+        torso_turn_data_smooth = savgol_filter(body_turn_data, 11, 3)
         torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth, 3)
 
-        wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 20, 3)
+        wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 11, 3)
         wrist_angular_vel_smooth = np.gradient(wrist_angle_data_smooth, 10)
 
-        elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
+        elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 11, 3)
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth, 3)
         
 
@@ -593,14 +655,18 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         print("")
 
 
-        print("swing start at frame ", swing_start_frame + offset_frames)
-        print('swing end at frame ', swing_end_frame + offset_frames)
+        #print("swing start at frame ", swing_start_frame + offset_frames)
+        #print('swing end at frame ', swing_end_frame + offset_frames)
         #print('offset frames', offset_frames)
         framenumber = [a + offset_frames for a in framenumber]
 
         result_name = 'result_{}.xlsx'.format(video_name)
         coordinate_name = 'coordinate_{}.xlsx'.format(video_name)
         angle_name = 'angle_{}.xlsx'.format(video_name)
+        ball_name = 'angle_{}.xlsx'.format(video_name)
+
+        df = DataFrame({'ball angle' : [avg_angle], 'ball speed (pixels/frame)' : [avg_speed], 'ball speed (meters/second)' : [avg_speed_meter_per_second]})
+        df.to_excel(ball_name, sheet_name='sheet1', index=False)
 
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,

@@ -4,3 +4,5 @@
 video_name = 'noobtest.mp4'
 box_start = (0,0)
 box_end = (0,0)
+frame_per_second = 420
+base_length = 1 #in meters
