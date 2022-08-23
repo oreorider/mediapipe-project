@@ -11,3 +11,5 @@ base_length = 1 #in meters
 
 box_start = (0,0)
 box_end = (0,0)
+
+change = 0
