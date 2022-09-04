@@ -660,8 +660,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
         result_name = 'result_{}.xlsx'.format(video_name)
         coordinate_name = 'coordinate_{}.xlsx'.format(video_name)
-        angle_name = 'angle_{}.xlsx'.format(video_name)
-        ball_name = 'angle_{}.xlsx'.format(video_name)
+        angle_name = 'body_angle_{}.xlsx'.format(video_name)
+        ball_name = 'ball_angle_{}.xlsx'.format(video_name)
 
         df = DataFrame({'ball angle' : [avg_angle], 'ball speed (pixels/frame)' : [avg_speed], 'ball speed (meters/second)' : [avg_speed_meter_per_second]})
         df.to_excel(ball_name, sheet_name='sheet1', index=False)
