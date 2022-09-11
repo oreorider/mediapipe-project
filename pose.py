@@ -493,7 +493,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     Highlighter = Highlighter(ax3, ball_x_pos, ball_y_pos)
     plt.show()
     selected_region = Highlighter.mask
-    #print(ball_x_pos[selected_region], ball_y_pos[selected_region])
+    print(ball_x_pos[selected_region], ball_y_pos[selected_region])
     
     selected_x = ball_x_pos[selected_region]
     selected_y = ball_y_pos[selected_region]
@@ -505,7 +505,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     print('==============================')
     print('avg ball angle is : ', avg_angle)
     selected_frames = framenumber_ball[selected_region]
-    
+    print('selected frames: ', selected_frames)
 
     dx = np.diff(selected_x)
     dy = np.diff(selected_y)
@@ -513,7 +513,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     #print(np.shape(np.stack((dx, dy), axis=0)))
     dframe = np.diff(selected_frames)
     dists = LA.norm(np.stack((dx, dy)), axis = 0)
+    dframe[dframe==0] = 1
     #print(np.shape(dists))
+    print('*********dframe*********', frame)
     speeds = dists/dframe
     avg_speed = np.average(speeds)
     print('avg speed in pixels per frame is :', avg_speed)
