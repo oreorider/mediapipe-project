@@ -15,6 +15,7 @@ def equation_plane(x1, y1, z1, x2, y2, z2, x3, y3, z3):
     return (a, b, c, d)
     
 def angle_between_plane_and_vector(a, b, c, d, l, m, n):
+    #print('enter func')
     sin_theta = abs(a*l + b*m + c*n)/(math.sqrt(a**2 + b**2 + c**2) * math.sqrt(l**2 + m**2 + n**2))
     return np.arcsin(sin_theta)*180/math.pi
 
@@ -33,6 +34,7 @@ def angle_between_two_planes(a1, b1, c1, d1, a2, b2, c2, d2):
     cos_theta = abs(a1*a2 + b1*b2 + c1*c2)/(math.sqrt(a1*a1 + b1*b1 + c1*c1) * math.sqrt(a2*a2+ b2*b2+ c2*c2))
     return np.arccos(cos_theta)*180/math.pi
 
+"""
 x1 =-1
 y1 = 2
 z1 = 1
@@ -51,3 +53,4 @@ angle = angle_between_plane_and_vector(a,b,c,d,px,py,pz)
 angle2 = angle_between_two_planes(a,b,c,d,l,m,n,o)
 print(px,'x',py,'y',pz,'z')
 print(angle2)
+"""

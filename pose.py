@@ -14,7 +14,7 @@ from pandas import DataFrame
 import config
 
 import select_region
-
+from testingmath import *
 
 
 video_name = config.video_name
@@ -23,6 +23,7 @@ video_name = config.video_name
 pose_confidence_value = 0.9
 
 meter_per_pixel = config.base_length/abs(config.box_end[0] - config.box_start[0])
+tee_stand_pos = (config.box_end[0]+config.box_start[0])/2 #teeball stand in pixels
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -31,6 +32,9 @@ offset_frames = 0
 
 prev_elbow_angle = 0
 prev_wrist_angle = 0
+
+max_clockwise_body_turn = 0
+max_clockwise_body_turn_frame = 0
 
 highest_foot_pos = 1
 backswing_start_frame = 0
@@ -54,7 +58,9 @@ left_ankle_position = []
 right_foot_position = []
 left_foot_position = []
 
-wrist_angle_data = []
+l_wrist_angle_data = []
+r_wrist_angle_data = []
+
 body_turn_data = []
 elbow_angle_data = []
 hip_turn_data = []
@@ -82,8 +88,22 @@ l_hip_sag_data = []
 r_hip_horiz_data = []
 l_hip_horiz_data = []
 
-ball_position = []
+l_elbow_horizontal_angle_data = []
+r_elbow_horizontal_angle_data = []
 
+ball_position = []
+form_condition_heel_passed = False
+form_condition_toe_passed = False
+form_condition_foot = False
+form_condition_backswing=False
+form_condition_forwardswing=False
+form_condition_sequence=False
+
+backswing_fail_string = "백스윙 시 양쪽 엄지발가락 쪽에 힘을 모으고, 골반과 무릎을 굽혀 모여진 모습으로 백스윙 한 후 순간적으로 타격 하세요"
+foot_fail_string = "뻗는 발을 접을 때 몸이 뒤로 기울지 않게 하고, 뻗는 위치는 티대까지만 뻗으세요"
+forwardswing_fail_string = "몸을 비스듬히 하여 무릎과 골반을 사용하고, 뒤쪽 팔꿈치를 몸의 안쪽(가슴쪽)으로 가까이하여 스윙하세요"
+sequence_fail_string = "골반을 먼저 회전하고,  팔꿈치를 안쪽으로 하여 임팩트 후 멈추지 말고 머리에 공이 있다고 생각하여 끝까지 회전하세요"
+success_string = "골반-몸통-팔꿈치 순서로 움직임이 잘 나타났습니다"
 
 #start = False
 start = True
@@ -158,16 +178,22 @@ def ball_tracking(ret, frame, frame_next, position, currentframe):
     
     #currentframe += 1
 
-def calculate_body_turn(shoulder_vec, hip_vec):
+def calculate_body_turn(shoulder_vec, hip_vec):#input must be 2d vectors
     v1=shoulder_vec/LA.norm(shoulder_vec)
     v2=hip_vec/LA.norm(hip_vec)
     res = np.dot(v1, v2)
     #print('dot prod for body is : ', res)
     angle_rad = np.arccos(res)
+    ret_angle=0
     #print('body angle : ', math.degrees(angle_rad))
-    #if(np.cross(v1, v2)<0):
-    #    return -1*math.degrees(angle_rad)
-    return math.degrees(angle_rad)
+    if np.cross(v1, v2)<0:
+        ret_angle = -1*math.degrees(angle_rad)
+        return ret_angle
+    else:
+        ret_angle = math.degrees(angle_rad)
+        return ret_angle
+    #print(ret_angle)
+    
 
 def findangle(vec1, vec2):
     vec1_unit = vec1 / LA.norm(vec1)
@@ -253,6 +279,16 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 rwrist_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value]
                 lwrist_landmark = landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value]
 
+                #left hand landmarks
+                lindex_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
+                lthumb_landmark = landmarks[mp_pose.PoseLandmark.LEFT_THUMB.value]
+                lpinky_landmark = landmarks[mp_pose.PoseLandmark.LEFT_PINKY.value]
+
+                #right hand landmarks
+                rindex_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_INDEX.value]
+                rthumb_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_THUMB.value]
+                rpinky_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_PINKY.value]
+
                 #knee landmark
                 rknee_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value]
                 lknee_landmark = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value]
@@ -270,28 +306,44 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 lheel_landmark = landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value]
 
                 
-                #calculate elbow angle
+                #elbow landmark
                 relbow_landmark = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
                 lelbow_landmark = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value]
-                elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.z]) #left elbow
-                shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
-                wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
-                l_elbow_angle = calculate_angle_3d(shoulder_pos_np, elbow_pos_np, wrist_pos_np) #LEFT elbow angle
-                #r_elbow_angle = calculate_angle_3d(np.array(rshoulder_landmark), np.array(relbow_landmark), np.array(rwrist_landmark))
 
-                r_elbow_angle = calculate_angle_3d(np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z]),
-                np.array([relbow_landmark.x, relbow_landmark.y, relbow_landmark.z]), np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z]))
+                l_index_pos_np = np.array([lindex_landmark.x, lindex_landmark.y, lindex_landmark.z])#left hand
+                l_elbow_pos_np = np.array([lelbow_landmark.x, lelbow_landmark.y, lelbow_landmark.z]) #left elbow
+                l_shoulder_pos_np = np.array([lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z]) #left shoulder
+                l_wrist_pos_np = np.array([lwrist_landmark.x, lwrist_landmark.y, lwrist_landmark.z]) #left wrist
+                l_hip_pos_np = [lhip_landmark.x, lhip_landmark.y, lhip_landmark.z]
+               
+                
+                #r_elbow_angle = calculate_angle_3d(np.array(rshoulder_landmark), np.array(relbow_landmark), np.array(rwrist_landmark))
+                r_hand_pos_np = np.array([rindex_landmark.x, rindex_landmark.y, rindex_landmark.z])
+                r_elbow_pos_np = np.array([relbow_landmark.x, relbow_landmark.y, relbow_landmark.z])
+                r_shoulder_pos_np = np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z])
+                r_wrist_pos_np = np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z])
+                r_hip_pos_np = [rhip_landmark.x, rhip_landmark.y, rhip_landmark.z]
+                
+                #r_elbow_angle = calculate_angle_3d(np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z]),
+                #np.array([relbow_landmark.x, relbow_landmark.y, relbow_landmark.z]), np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z]))
 
                 #print('right elbow angle : ', r_elbow_angle, '\t\tleft elbow angle : ', l_elbow_angle)
+                l_elbow_angle = calculate_angle_3d(l_shoulder_pos_np, l_elbow_pos_np, l_wrist_pos_np) #LEFT elbow bending angle
+                r_elbow_angle = calculate_angle_3d(r_shoulder_pos_np, r_elbow_pos_np, r_wrist_pos_np)
+
+                #calculate left/right wrist angle
+                l_wrist_angle = calculate_angle_3d(l_elbow_pos_np, l_wrist_pos_np, l_index_pos_np)#angle of left wrist
+                r_wrist_angle = calculate_angle_3d(r_elbow_pos_np, r_wrist_pos_np, r_hand_pos_np)
+
+
+                #append wrist and elbow data
+                l_wrist_angle_data.append(l_wrist_angle)
+                r_wrist_angle_data.append(r_wrist_angle)
+
                 r_elbow_angle_data.append(r_elbow_angle)
                 l_elbow_angle_data.append(l_elbow_angle)
 
-                
-                #calculate wrist angle
-                hand_landmark = landmarks[mp_pose.PoseLandmark.LEFT_INDEX.value]#left index finger landmark values
-                hand_pos_np = np.array([hand_landmark.x, hand_landmark.y, hand_landmark.z])#left hand
-                wrist_angle = calculate_angle_3d(elbow_pos_np, wrist_pos_np, hand_pos_np)#angle of left wrist
-                
+                #declare vectors for simpler calculations
                 #foot_vec = np.array([global_x_right.x - global_x_left.x, global_x_right.z - global_x_left.z])
                 foot_vec = np.array([rfoot_landmark.x - lfoot_landmark.x, rfoot_landmark.z - lfoot_landmark.z])
                 #calculate hip turn
@@ -299,7 +351,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 shoulder_vec = np.array([rshoulder_landmark.x - lshoulder_landmark.x, rshoulder_landmark.z - lshoulder_landmark.z])
                 #foot_vec = global_x_vec
                 hip_turn_angle = calculate_body_turn(foot_vec, hip_vec)
-
+                #left wrist thumb vector
+                l_wrist_thumb_vec = [lthumb_landmark.x - lwrist_landmark.x, lthumb_landmark.y - lwrist_landmark.y, lthumb_landmark.z - lwrist_landmark.z]
+                #right wrist thumb vector
+                r_wrist_thumb_vec = [rthumb_landmark.x - rwrist_landmark.x, rthumb_landmark.y - rwrist_landmark.y, rthumb_landmark.z - rwrist_landmark.z]
                 #right humerus vector
                 r_hum_vec = np.array([relbow_landmark.x - rshoulder_landmark.x, relbow_landmark.y - rshoulder_landmark.y, relbow_landmark.z - rshoulder_landmark.z])
                 #left humerus vector
@@ -310,6 +365,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 hips_middle = np.array([(rhip_landmark.x + lhip_landmark.x)/2, (rhip_landmark.y + lhip_landmark.y)/2, (rhip_landmark.z + lhip_landmark.z)/2])
                 #body vector
                 body_vec = hips_middle - shoulder_middle
+                #left body vector
+                l_body_vec = [lhip_landmark.x - lshoulder_landmark.x, lhip_landmark.y - lshoulder_landmark.y, lhip_landmark.z - lshoulder_landmark.z]
+                r_body_vec = [rhip_landmark.x - rshoulder_landmark.x, rhip_landmark.y - rshoulder_landmark.y, rhip_landmark.z - rshoulder_landmark.z]
                 #upper leg vector
                 r_femur_vec = np.array([rknee_landmark.x - rhip_landmark.x, rknee_landmark.y - rhip_landmark.y, rknee_landmark.z - rhip_landmark.z])
                 l_femur_vec = np.array([lknee_landmark.x - lhip_landmark.x, lknee_landmark.y - lhip_landmark.y, lknee_landmark.z - lhip_landmark.z])
@@ -320,6 +378,54 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 r_footdir_vec = np.array([rfoot_landmark.x - rheel_landmark.x, rfoot_landmark.y - rheel_landmark.y, rfoot_landmark.z - rheel_landmark.z])
                 l_footdir_vec = np.array([lfoot_landmark.x - lheel_landmark.x, lfoot_landmark.y - lheel_landmark.y, lfoot_landmark.z - lheel_landmark.z])
                 #print('checkmark 1')
+
+                ##calculating hip abduction/adduction
+                #left hip abduction
+                l_body_plane_a, l_body_plane_b, l_body_plane_c, l_body_plane_d = equation_plane(
+                                                                    lhip_landmark.x, lhip_landmark.y, lhip_landmark.z,
+                                                                    rhip_landmark.x, rhip_landmark.y, rhip_landmark.z,
+                                                                    lshoulder_landmark.x, lshoulder_landmark.y, lshoulder_landmark.z)
+                #project femur onto left body plane
+                
+                p1, p2, p3 = project_vector_onto_plane(l_femur_vec[0], l_femur_vec[1], l_femur_vec[2], 
+                                                                    l_body_plane_a, l_body_plane_b, l_body_plane_c, l_body_plane_d)
+                l_hip_frontal_angle = findangle([p1,p2,p3],l_body_vec)
+                #print('checkmark 2')
+                #right hip abduction
+                r_body_plane_a, r_body_plane_b, r_body_plane_c, r_body_plane_d = equation_plane(
+                                                                    rhip_landmark.x, rhip_landmark.y, rhip_landmark.z,
+                                                                    lhip_landmark.x, lhip_landmark.y, lhip_landmark.z,
+                                                                    rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z)
+                p1, p2, p3 = project_vector_onto_plane(r_femur_vec[0], r_femur_vec[1], r_femur_vec[2],
+                                                                    r_body_plane_a, r_body_plane_b, r_body_plane_c, r_body_plane_d)
+                r_hip_frontal_angle = findangle([p1,p2,p3], r_body_vec)
+                #print('checkmark 3')
+
+
+                #calculate elbow horizontal 
+                l_hand_plane_a, l_hand_plane_b, l_hand_plane_c, l_hand_plane_d = equation_plane(
+                                                                    lindex_landmark.x, lindex_landmark.y, lindex_landmark.z,
+                                                                    lthumb_landmark.x, lthumb_landmark.y, lthumb_landmark.z,
+                                                                    lpinky_landmark.x, lpinky_landmark.y, lpinky_landmark.z)
+                #print(l_hand_plane_a, l_hand_plane_b, l_hand_plane_c, l_hand_plane_d)
+                l_elbow_horizontal_angle = angle_between_plane_and_vector(l_hand_plane_a, l_hand_plane_b, l_hand_plane_c, l_hand_plane_d,
+                                                                    l_wrist_thumb_vec[0], l_wrist_thumb_vec[1], l_wrist_thumb_vec[2])
+                #print('check')
+                r_hand_plane_a, r_hand_plane_b, r_hand_plane_c, r_hand_plane_d = equation_plane(
+                                                                    rindex_landmark.x, rindex_landmark.y, rindex_landmark.z,
+                                                                    rthumb_landmark.x, rthumb_landmark.y, rthumb_landmark.z,
+                                                                    rpinky_landmark.x, rpinky_landmark.y, rpinky_landmark.z)
+                r_elbow_horizontal_angle = angle_between_plane_and_vector(r_hand_plane_a, r_hand_plane_b, r_hand_plane_c, r_hand_plane_d,
+                                                                    r_wrist_thumb_vec[0], r_wrist_thumb_vec[1], r_wrist_thumb_vec[2])
+                
+                
+
+                l_elbow_horizontal_angle_data.append(l_elbow_horizontal_angle)
+                r_elbow_horizontal_angle_data.append(r_elbow_horizontal_angle)
+                #print('checkmark 4')
+
+
+
                 #calculate ankle flexion extension
                 r_ankle_sagittal = findangle(r_fibula_vec, r_footdir_vec)
                 l_ankle_sagittal = findangle(l_fibula_vec, l_footdir_vec)
@@ -361,6 +467,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #print('hip vec : ', hip_vec, '\t shoulder vec : ', shoulder_vec)
                 body_turn_angle = calculate_body_turn(hip_vec, shoulder_vec)
                 
+                #print('body turn angle : ', body_turn_angle)
+                
                 #calculate hip flexion extension
                 r_hip_sagittal = 180 - findangle([r_femur_vec[1], r_femur_vec[2]], [body_vec[1], body_vec[2]]) #use only y,z
                 l_hip_sagittal = 180 - findangle([l_femur_vec[1], l_femur_vec[2]], [body_vec[1], body_vec[2]]) #use only y,z
@@ -399,7 +507,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 right_foot_position.append(landmarks[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX.value])
                 left_foot_position.append(landmarks[mp_pose.PoseLandmark.LEFT_FOOT_INDEX.value])
 
-                wrist_angle_data.append(wrist_angle)
+                
                 hip_turn_data.append(hip_turn_angle)
 
                 #print('body turn angle is : ', body_turn_angle)
@@ -415,6 +523,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 
                 #if((landmarks[mp_pose.PoseLandmark.LEFT_HEEL.value].y < landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) and swing_start_frame==0):
                 #    swing_start_frame = currentframe
+
+                if (body_turn_angle < max_clockwise_body_turn):
+                    body_turn_angle = max_clockwise_body_turn
+                    max_clockwise_body_turn_frame = currentframe
+                    #max_clockwise_hip_vec = hip_vec
+                    #max_clockwise_shoulder_vec = shoulder_vec
+                    
 
                 #print('ankle y pos : ', lankle_landmark.y)
                 if(lankle_landmark.y < highest_foot_pos):
@@ -434,14 +549,18 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #image = cv2.circle(image, left_wrist_coord, 20, (255, 0, 0), 3)
                 #image = cv2.circle(image, right_foot_coord, 20, (0, 255, 0), 3)
                 #image = cv2.circle(image, (width*0.1, height*0.9), 20, (255,0,0), 3)
-                
+
+                if(lheel_landmark.x* width > tee_stand_pos):#if heel passes tee
+                    form_condition_heel_passed = True
+                if(lfoot_landmark.x * width > tee_stand_pos):#if toe passes tee
+                    form_condition_toe_passed = True
                 framenumber.append(currentframe)
                 currentframe += 1
                 #if(currentframe == 470):
                 #    time.sleep(5)
 
         except:
-            #print('offsetframe increase')
+            print('offsetframe increase')
             offset_frames+=1
             currentframe+=1
             pass
@@ -493,7 +612,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     Highlighter = Highlighter(ax3, ball_x_pos, ball_y_pos)
     plt.show()
     selected_region = Highlighter.mask
-    print(ball_x_pos[selected_region], ball_y_pos[selected_region])
+    #print(ball_x_pos[selected_region], ball_y_pos[selected_region])
     
     selected_x = ball_x_pos[selected_region]
     selected_y = ball_y_pos[selected_region]
@@ -503,9 +622,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     avg_delta_y = np.average(selected_y)
     avg_angle = np.arctan(avg_delta_y/avg_delta_x)*(180/math.pi)
     print('==============================')
-    print('avg ball angle is : ', avg_angle)
+    #print('avg ball angle is : ', avg_angle)
     selected_frames = framenumber_ball[selected_region]
-    print('selected frames: ', selected_frames)
+    #print('selected frames: ', selected_frames)
 
     dx = np.diff(selected_x)
     dy = np.diff(selected_y)
@@ -515,10 +634,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     dists = LA.norm(np.stack((dx, dy)), axis = 0)
     dframe[dframe==0] = 1
     #print(np.shape(dists))
-    print('*********dframe*********', frame)
+    #print('*********dframe*********', frame)
     speeds = dists/dframe
     avg_speed = np.average(speeds)
-    print('avg speed in pixels per frame is :', avg_speed)
+    #print('avg speed in pixels per frame is :', avg_speed)
     avg_speed_meter_per_second = avg_speed * meter_per_pixel * config.frame_per_second
     print('avg speed in meter per second is : ', avg_speed_meter_per_second)
 
@@ -530,8 +649,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     ankle_delta = left_ankle_position[0].y - left_ankle_position[swing_start_frame].y
     backswing_start_y = left_ankle_position[0].y - ankle_delta*0.2
 
-    print('ankle delta : ', ankle_delta)
-    print('backswing start y pos : ', backswing_start_y)
+    #print('ankle delta : ', ankle_delta)
+    #print('backswing start y pos : ', backswing_start_y)
     for index in range(swing_start_frame, -1, -1):
         if(left_ankle_position[index].y < backswing_start_y):
             continue #ignore number, need to find number that is greater than our target ankle pos y
@@ -539,10 +658,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
             backswing_start_frame = index
             break
 
-    print('backswing start frame : ', backswing_start_frame)
-    print('swing start frame : ', swing_start_frame)
-    print('swing end frame : ', swing_end_frame)
-    print('ball pos start : ', ball_position[0].frame)
+    #print('backswing start frame : ', backswing_start_frame)
+    #print('swing start frame : ', swing_start_frame)
+    #print('swing end frame : ', swing_end_frame)
+    #print('ball pos start : ', ball_position[0].frame)
+
     """
     trimmed_xy = ball_position[:swing_end_frame-ball_position[0].frame]
     print('trimmed xy : ', len(ball_position))
@@ -610,10 +730,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         shoulder_accel_norm = LA.norm(shoulder_accel, axis=0)
         wrist_accel_norm = LA.norm(wrist_accel, axis=0)
         """
-        print('body turn data length : ', len(body_turn_data))
+        #print('body turn data length : ', len(body_turn_data))
         torso_angular_vel = np.gradient(body_turn_data)
         hip_angular_vel = np.gradient(hip_turn_data)
-        wrist_angular_vel = np.gradient(wrist_angle_data)
+        wrist_angular_vel = np.gradient(l_wrist_angle_data)
         elbow_angular_vel = np.gradient(elbow_angle_data)
 
         
@@ -627,7 +747,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         torso_turn_data_smooth = savgol_filter(body_turn_data, 11, 3)
         torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth, 3)
 
-        wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 11, 3)
+        wrist_angle_data_smooth = savgol_filter(l_wrist_angle_data, 11, 3)
         wrist_angular_vel_smooth = np.gradient(wrist_angle_data_smooth, 10)
 
         elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 11, 3)
@@ -635,24 +755,68 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         
 
         swing_length = swing_end_frame - swing_start_frame
+
+        #운동수행 폼 #1 condition
+        impactframe = np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame
+        maximum_backswing_frames = 0.455 * config.frame_per_second
+        #print('impact frame: ', impactframe)
+        #print('max clockwise body frame: ', max_clockwise_body_turn_frame)
         
+        if(impactframe - max_clockwise_body_turn_frame < maximum_backswing_frames):
+            form_condition_backswing=True
         #print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
 
-        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        #운동수행 폼 #2 condition
+        if(not form_condition_heel_passed and form_condition_toe_passed):
+            form_condition_foot = True
+
+        #운동수행 폼 #3 condition
+        if(hip_turn_data_smooth[impactframe] - hip_turn_data_smooth[max_clockwise_body_turn_frame] > 80.3 and 
+        torso_turn_data_smooth[impactframe] - torso_turn_data_smooth[max_clockwise_body_turn_frame] > 102.8):
+            form_condition_forwardswing = True
+
+        max_torso_speed_frame = np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame
+        max_hip_speed_frame = np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame
+
+        #운동수행 폼 #4 condition
+        if(impactframe > max_torso_speed_frame and max_torso_speed_frame > max_hip_speed_frame):
+            form_condition_sequence=True
+
+        print('form conditions')
+        print(form_condition_backswing, form_condition_foot, form_condition_forwardswing, form_condition_sequence)
+
+        if(form_condition_backswing == False):
+            print(backswing_fail_string)
+        elif(form_condition_foot == False):
+            print(foot_fail_string)
+        elif(form_condition_forwardswing == False):
+            print(forwardswing_fail_string)
+        elif(form_condition_sequence == False):
+            print(sequence_fail_string)
+        else:
+            print(success_string)
+        print('avg ball angle is : ', avg_angle)
+
+        
+
+        """
+        print("엉덩관절 최대 회전 각속도 @ frame number ", max_hip_speed_frame)
         print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
         print("")
 
-        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print("몸통 최대 각속도 @ frame number ", max_torso_speed_frame)
         print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
         print("")
 
-        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        print("팔꿈치 최대 각속도 @ frame number", impactframe)
         print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
         print("")
 
+        
         print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
         print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
         print("")
+        """
 
 
         #print("swing start at frame ", swing_start_frame + offset_frames)
@@ -671,7 +835,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         df = DataFrame({'Frame': framenumber, 
                         'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
                         'torso angle no smoothing': body_turn_data, 'torso angle with smoothing': torso_turn_data_smooth, 'torso angular velocity (from smooth)': torso_angular_vel_smooth,
-                        'wrist angle no smoothing': wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
+                        'wrist angle no smoothing': l_wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
                         'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth
                         })
         df.to_excel(result_name, sheet_name='sheet1', index=False)
@@ -706,12 +870,12 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                         'right shoulder sagittal' : r_should_sag_data, 'left shoulder sagittal' : l_should_sag_data,
                         'right shoulder horiz' : r_should_horiz_data, 'left shoulder horiz' : l_should_horiz_data,
                         'right shoulder frontal' : r_should_front_data, 'left shoulder frontal' : l_should_front_data,
-                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data, 'wrist angle' : wrist_angle_data,
+                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data, 'wrist angle' : l_wrist_angle_data,
                         'right hip sagittal' : r_hip_sag_data, 'left hip sagittal' : l_hip_sag_data,
                         'right hip horizontal' : r_hip_horiz_data, 'left hip horizontal': l_hip_horiz_data
                         })
         df.to_excel(angle_name, sheet_name = 'sheet1', index = False)
-
+        """
         fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)
         axs[0,0].set_title('hip turn smooth')
@@ -746,13 +910,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         axs[0,3].plot(framenumber, wrist_angle_data_smooth)
         axs[0,3].set_title('wrist angle smooth')
 
-        axs[1,3].plot(framenumber, wrist_angle_data)
+        axs[1,3].plot(framenumber, l_wrist_angle_data)
         axs[1,3].set_title('wrist angle')
 
         axs[2,3].plot(framenumber, wrist_angular_vel_smooth)
         axs[2,3].set_title('wrist angular velocity')
 
-        """
+        
         hip_angvel_graph = plt.figure(0)
         plt.scatter(framenumber, hip_angular_vel_smooth)
         plt.title("hip angular velocity with smoothing")
