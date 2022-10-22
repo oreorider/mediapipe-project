@@ -12,7 +12,7 @@ base_length = 1 #in meters
 #real time yes or no
 #1 --> real time
 #0 --> pre recorded
-real_time = 0
+real_time = 1
 
 #1 --> 길게 설명
 #0 --> 짧게 1,2,3,4 조건만

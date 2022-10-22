@@ -9,6 +9,7 @@ from scipy.signal import savgol_filter
 from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import time
+from datetime import datetime
 import math
 
 from pandas import DataFrame
@@ -19,8 +20,15 @@ from testingmath import *
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
+timestamp = time.time()
+date_time = datetime.fromtimestamp(timestamp)
+str_date_time = date_time.strftime("%d-%m-%Y, %H:%M:%S")
+
 real_time = config.real_time
-video_name = config.video_name
+if(not config.real_time):
+    video_name = config.video_name
+if(config.real_time):
+    video_name = time.time()
 
 #신뢰값
 pose_confidence_value = 0.9
