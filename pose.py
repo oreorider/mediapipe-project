@@ -1,3 +1,4 @@
+from select import select
 import cv2
 #from matplotlib import offsetbox
 #from matplotlib.text import OffsetFrom
@@ -13,10 +14,12 @@ import math
 from pandas import DataFrame
 import config
 
-import select_region
+from select_region import *
 from testingmath import *
 
+font = cv2.FONT_HERSHEY_SIMPLEX
 
+real_time = config.real_time
 video_name = config.video_name
 
 #신뢰값
@@ -93,6 +96,8 @@ r_elbow_horizontal_angle_data = []
 
 ball_position = []
 form_condition_heel_passed = False
+heel_passed_coordinate = 0
+toe_passed_coordinate = 0
 form_condition_toe_passed = False
 form_condition_foot = False
 form_condition_backswing=False
@@ -152,8 +157,8 @@ def ball_tracking(ret, frame, frame_next, position, currentframe):
     _, movement_mask = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY) 
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    lowerhsv = np.array([0, 177, 87])
-    upperhsv = np.array([40, 255, 255])
+    lowerhsv = np.array([0, 160, 80])
+    upperhsv = np.array([50, 255, 255])
 
     color_mask = cv2.inRange(hsv, lowerhsv, upperhsv)\
     
@@ -230,9 +235,13 @@ def calculate_angle_3d(start, middle, end):
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_confidence_value, enable_segmentation = True) as pose:
     currentframe = 0
-    cap = cv2.VideoCapture(video_name)
-    #cap = cv2.VideoCapture(0)
+    if(real_time == 0): #if pre recorded
+        cap = cv2.VideoCapture(video_name)
+    else:
+        cap = cv2.VideoCapture(0)
     
+    select_region(cap)
+
     while cap.isOpened():
         width  = cap.get(3)
         height = cap.get(4)
@@ -552,8 +561,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
                 if(lheel_landmark.x* width > tee_stand_pos):#if heel passes tee
                     form_condition_heel_passed = True
+                    heel_passed_coordinate = lheel_landmark.x *  width #in pixels
                 if(lfoot_landmark.x * width > tee_stand_pos):#if toe passes tee
                     form_condition_toe_passed = True
+                    toe_passed_coordinate = lfoot_landmark.x * width #coordinate in pixels
                 framenumber.append(currentframe)
                 currentframe += 1
                 #if(currentframe == 470):
@@ -581,6 +592,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
         
         cv2.rectangle(image, config.box_start, config.box_end, (0,255,0), 2)
+        if(real_time):
+            cv2.putText(image, "press q when finished", (10,450), font, 1, (0,255,0), 2, cv2.LINE_AA)
         cv2.imshow('Mediapipe feed', image)
 
         if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -648,7 +661,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     #find backswing start frame
     ankle_delta = left_ankle_position[0].y - left_ankle_position[swing_start_frame].y
     backswing_start_y = left_ankle_position[0].y - ankle_delta*0.2
-
+    
     #print('ankle delta : ', ankle_delta)
     #print('backswing start y pos : ', backswing_start_y)
     for index in range(swing_start_frame, -1, -1):
@@ -796,6 +809,31 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         else:
             print(success_string)
         print('avg ball angle is : ', avg_angle)
+
+        if(config.verbose):
+            print("==========1번=============")
+            print("maximum allows backswing frames : ", maximum_backswing_frames)
+            print("impactframe : ", impactframe)
+            print("maximum clockwise body turn frame : ", max_clockwise_body_turn_frame)
+            print("frames taken for backswing : ", impactframe - max_clockwise_body_turn_frame)
+            print("==========2번=============")
+            if(form_condition_heel_passed):
+                print("heel passed stand by : ", (heel_passed_coordinate - tee_stand_pos) *  meter_per_pixel)
+            if(not form_condition_heel_passed):
+                print("heel did not pass stand by : ", (tee_stand_pos - heel_passed_coordinate) * meter_per_pixel)
+            if(form_condition_toe_passed):
+                print("toe passed stand by : ", (toe_passed_coordinate - tee_stand_pos) * meter_per_pixel)
+            if(not form_condition_toe_passed):
+                print("toe did not pass stand by : ", (toe_passed_coordinate - tee_stand_pos) * meter_per_pixel)
+            print("=========3번============")
+            print("hip turn angle at maximum backswing : ", hip_turn_data_smooth[max_clockwise_body_turn_frame])
+            print("hip turn angle at impact : ", hip_turn_data_smooth[impactframe])
+            print("torso turn angle at maximum backswing : ", torso_turn_data_smooth[max_clockwise_body_turn])
+            print("torso turn agnle at impact : ", torso_turn_data_smooth[impactframe])
+            print("===========4번==========")
+            print("maximum hip turn speed frame : ", max_hip_speed_frame )
+            print("maximum torso turn speed frame : ", max_torso_speed_frame)
+            print("maximum elbow turn speed frame : ", impactframe)
 
         
 

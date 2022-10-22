@@ -9,5 +9,14 @@ frame_per_second = 240
 #length of ball stand
 base_length = 1 #in meters
 
+#real time yes or no
+#1 --> real time
+#0 --> pre recorded
+real_time = 0
+
+#0 --> 길게 설명
+#1 --> 짧게 1,2,3,4 조건만
+verbose = 1
+
 box_start = (0,0)
 box_end = (1,1)
