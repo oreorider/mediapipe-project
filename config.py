@@ -14,8 +14,8 @@ base_length = 1 #in meters
 #0 --> pre recorded
 real_time = 0
 
-#0 --> 길게 설명
-#1 --> 짧게 1,2,3,4 조건만
+#1 --> 길게 설명
+#0 --> 짧게 1,2,3,4 조건만
 verbose = 1
 
 box_start = (0,0)
