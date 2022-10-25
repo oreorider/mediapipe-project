@@ -54,6 +54,7 @@ swing_end_frame = 0
 prev_wrist_max_pos = 0
 framenumber = []
 
+
 right_hip_position = []
 left_hip_position = []
 right_shoulder_position = []
@@ -102,11 +103,20 @@ l_hip_horiz_data = []
 l_elbow_horizontal_angle_data = []
 r_elbow_horizontal_angle_data = []
 
+l_ankle_frontal_angle_data = []
+r_ankle_frontal_angle_data = []
+
+l_hip_frontal_angle_data = []
+r_hip_frontal_angle_data = []
+
+l_wrist_frontal_angle_data = []
+r_wrist_frontal_angle_data = []
+
 ball_position = []
-form_condition_heel_passed = False
-heel_passed_coordinate = 0
-toe_passed_coordinate = 0
-form_condition_toe_passed = False
+form_condition_heel_passed_box_start = False
+heel_passed_box_start_coordinate = 0
+toe_passed_box_end_coordinate = 0
+form_condition_heel_passed_box_end = False
 form_condition_foot = False
 form_condition_backswing=False
 form_condition_forwardswing=False
@@ -247,8 +257,23 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         cap = cv2.VideoCapture(video_name)
     else:
         cap = cv2.VideoCapture(0)
-    
+    _, frame = cap.read()
     select_region(cap)
+    
+    if(config.real_time):
+        #cap = cv2.VideoCapture(0)
+        while True:
+            #ret, frame = cap.read()
+            start_time = datetime.now()
+            diff = (datetime.now() - start_time).seconds
+            while(diff <= config.timer):
+                ret, frame = cap.read()
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(frame, "paused for {} seconds, currently {} seconds".format(config.timer, diff), (10,450), font, 1, (0,255,0), 2, cv2.LINE_AA)
+                cv2.imshow("delay window, will resume after {} seconds".format(config.timer), frame)
+                diff = (datetime.now() - start_time).seconds
+            break
+    
 
     while cap.isOpened():
         width  = cap.get(3)
@@ -335,7 +360,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                
                 
                 #r_elbow_angle = calculate_angle_3d(np.array(rshoulder_landmark), np.array(relbow_landmark), np.array(rwrist_landmark))
-                r_hand_pos_np = np.array([rindex_landmark.x, rindex_landmark.y, rindex_landmark.z])
+                r_index_pos_np = np.array([rindex_landmark.x, rindex_landmark.y, rindex_landmark.z])
                 r_elbow_pos_np = np.array([relbow_landmark.x, relbow_landmark.y, relbow_landmark.z])
                 r_shoulder_pos_np = np.array([rshoulder_landmark.x, rshoulder_landmark.y, rshoulder_landmark.z])
                 r_wrist_pos_np = np.array([rwrist_landmark.x, rwrist_landmark.y, rwrist_landmark.z])
@@ -350,8 +375,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
                 #calculate left/right wrist angle
                 l_wrist_angle = calculate_angle_3d(l_elbow_pos_np, l_wrist_pos_np, l_index_pos_np)#angle of left wrist
-                r_wrist_angle = calculate_angle_3d(r_elbow_pos_np, r_wrist_pos_np, r_hand_pos_np)
+                r_wrist_angle = calculate_angle_3d(r_elbow_pos_np, r_wrist_pos_np, r_index_pos_np)
 
+                
 
                 #append wrist and elbow data
                 l_wrist_angle_data.append(l_wrist_angle)
@@ -395,7 +421,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 r_footdir_vec = np.array([rfoot_landmark.x - rheel_landmark.x, rfoot_landmark.y - rheel_landmark.y, rfoot_landmark.z - rheel_landmark.z])
                 l_footdir_vec = np.array([lfoot_landmark.x - lheel_landmark.x, lfoot_landmark.y - lheel_landmark.y, lfoot_landmark.z - lheel_landmark.z])
                 #print('checkmark 1')
-
+                
                 ##calculating hip abduction/adduction
                 #left hip abduction
                 l_body_plane_a, l_body_plane_b, l_body_plane_c, l_body_plane_d = equation_plane(
@@ -407,6 +433,8 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 p1, p2, p3 = project_vector_onto_plane(l_femur_vec[0], l_femur_vec[1], l_femur_vec[2], 
                                                                     l_body_plane_a, l_body_plane_b, l_body_plane_c, l_body_plane_d)
                 l_hip_frontal_angle = findangle([p1,p2,p3],l_body_vec)
+
+                
                 #print('checkmark 2')
                 #right hip abduction
                 r_body_plane_a, r_body_plane_b, r_body_plane_c, r_body_plane_d = equation_plane(
@@ -417,8 +445,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                                                                     r_body_plane_a, r_body_plane_b, r_body_plane_c, r_body_plane_d)
                 r_hip_frontal_angle = findangle([p1,p2,p3], r_body_vec)
                 #print('checkmark 3')
-
-
+                
                 #calculate elbow horizontal 
                 l_hand_plane_a, l_hand_plane_b, l_hand_plane_c, l_hand_plane_d = equation_plane(
                                                                     lindex_landmark.x, lindex_landmark.y, lindex_landmark.z,
@@ -435,12 +462,59 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 r_elbow_horizontal_angle = angle_between_plane_and_vector(r_hand_plane_a, r_hand_plane_b, r_hand_plane_c, r_hand_plane_d,
                                                                     r_wrist_thumb_vec[0], r_wrist_thumb_vec[1], r_wrist_thumb_vec[2])
                 
-                
+                l_lowerbody_plane_a, l_lowerbody_plane_b, l_lowerbody_plane_c, l_lowerbody_plane_d = equation_plane(
+                                                                    lhip_landmark.x, lhip_landmark.y, lhip_landmark.z,
+                                                                    lknee_landmark.x, lknee_landmark.y, lknee_landmark.z,
+                                                                    lankle_landmark.x, lankle_landmark.y, lankle_landmark.z
+                )
+                l_foot_plane_a, l_foot_plane_b, l_foot_plane_c, l_foot_plane_d = equation_plane(
+                                                                    lankle_landmark.x, lankle_landmark.y, lankle_landmark.z,
+                                                                    lheel_landmark.x, lheel_landmark.y, lheel_landmark.z,
+                                                                    lfoot_landmark.x, lfoot_landmark.y, lfoot_landmark.z
+                )
+                l_ankle_frontal_angle = angle_between_two_planes(
+                    l_lowerbody_plane_a, l_lowerbody_plane_b, l_lowerbody_plane_c, l_lowerbody_plane_d,
+                    l_foot_plane_a, l_foot_plane_b, l_foot_plane_c, l_foot_plane_d
+                )
+
+                r_lowerbody_plane_a, r_lowerbody_plane_b, r_lowerbody_plane_c, r_lowerbody_plane_d = equation_plane(
+                                                                    rhip_landmark.x, rhip_landmark.y, rhip_landmark.z,
+                                                                    rknee_landmark.x, rknee_landmark.y, rknee_landmark.z,
+                                                                    rankle_landmark.x, rankle_landmark.y, rankle_landmark.z
+                )
+                r_foot_plane_a, r_foot_plane_b, r_foot_plane_c, r_foot_plane_d = equation_plane(
+                                                                    rankle_landmark.x, rankle_landmark.y, rankle_landmark.z,
+                                                                    rheel_landmark.x, rheel_landmark.y, rheel_landmark.z,
+                                                                    rfoot_landmark.x, rfoot_landmark.y, rfoot_landmark.z
+                )
+                r_ankle_frontal_angle = angle_between_two_planes(
+                    r_lowerbody_plane_a, r_lowerbody_plane_b, r_lowerbody_plane_c, r_lowerbody_plane_d,
+                    r_foot_plane_a, r_foot_plane_b, r_foot_plane_c, r_foot_plane_d
+                )
+
+                l_forearem_vec = [lwrist_landmark.x - lelbow_landmark.x, lwrist_landmark.y - lelbow_landmark.y, lwrist_landmark.z - lelbow_landmark.z]
+                l_handspan_vec = [lindex_landmark.x - lthumb_landmark.x, lindex_landmark.y - lthumb_landmark.y, lindex_landmark.z - lthumb_landmark.z]
+
+                l_wrist_frontal_angle = 90 - findangle(l_forearem_vec, l_handspan_vec)
+
+                r_forearm_vec = [rwrist_landmark.x - relbow_landmark.x, rwrist_landmark.y - relbow_landmark.y, rwrist_landmark.z - relbow_landmark.z]
+                r_handspan_vec = [rindex_landmark.x - rthumb_landmark.x, rindex_landmark.y - rthumb_landmark.y, rindex_landmark.z - rthumb_landmark.z]
+
+                r_wrist_frontal_angle = 90 - findangle(r_forearm_vec, r_handspan_vec)
+
+                l_wrist_frontal_angle_data.append(l_wrist_frontal_angle)
+                r_wrist_frontal_angle_data.append(r_wrist_frontal_angle)
+
+                l_hip_frontal_angle_data.append(l_hip_frontal_angle)
+                r_hip_frontal_angle_data.append(r_hip_frontal_angle)
+
 
                 l_elbow_horizontal_angle_data.append(l_elbow_horizontal_angle)
                 r_elbow_horizontal_angle_data.append(r_elbow_horizontal_angle)
                 #print('checkmark 4')
 
+                l_ankle_frontal_angle_data.append(l_ankle_frontal_angle)
+                r_ankle_frontal_angle_data.append(r_ankle_frontal_angle)
 
 
                 #calculate ankle flexion extension
@@ -567,12 +641,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
                 #image = cv2.circle(image, right_foot_coord, 20, (0, 255, 0), 3)
                 #image = cv2.circle(image, (width*0.1, height*0.9), 20, (255,0,0), 3)
 
-                if(lheel_landmark.x* width > tee_stand_pos):#if heel passes tee
-                    form_condition_heel_passed = True
-                    heel_passed_coordinate = lheel_landmark.x *  width #in pixels
-                if(lfoot_landmark.x * width > tee_stand_pos):#if toe passes tee
-                    form_condition_toe_passed = True
-                    toe_passed_coordinate = lfoot_landmark.x * width #coordinate in pixels
+                if(lheel_landmark.x* width > config.box_start[0]):#if heel passes box start
+                    form_condition_heel_passed_box_start = True
+                    heel_passed_box_start_coordinate = lheel_landmark.x *  width #in pixels
+                if(lheel_landmark.x * width > config.box_end[0]):#if heel passes box end
+                    form_condition_heel_passed_box_end = True
+                    toe_passed_box_end_coordinate = lheel_landmark.x * width #coordinate in pixels
+                
                 framenumber.append(currentframe)
                 currentframe += 1
                 #if(currentframe == 470):
@@ -788,7 +863,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         #print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
 
         #운동수행 폼 #2 condition
-        if(not form_condition_heel_passed and form_condition_toe_passed):
+        if(form_condition_heel_passed_box_start and not form_condition_heel_passed_box_end):
             form_condition_foot = True
 
         #운동수행 폼 #3 condition
@@ -820,20 +895,23 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
 
         if(config.verbose):
             print("==========1번=============")
+            print("1st condition is ", form_condition_backswing)
             print("maximum allows backswing frames : ", maximum_backswing_frames)
             print("impactframe : ", impactframe)
             print("maximum clockwise body turn frame : ", max_clockwise_body_turn_frame)
             print("frames taken for backswing : ", impactframe - max_clockwise_body_turn_frame)
             print("==========2번=============")
-            if(form_condition_heel_passed):
-                print("heel passed stand by : ", (heel_passed_coordinate - tee_stand_pos) *  meter_per_pixel)
-            if(not form_condition_heel_passed):
-                print("heel did not pass stand by : ", (tee_stand_pos - heel_passed_coordinate) * meter_per_pixel)
-            if(form_condition_toe_passed):
-                print("toe passed stand by : ", (toe_passed_coordinate - tee_stand_pos) * meter_per_pixel)
-            if(not form_condition_toe_passed):
-                print("toe did not pass stand by : ", (toe_passed_coordinate - tee_stand_pos) * meter_per_pixel)
+            print("2nd condition is ", form_condition_foot)
+            if(form_condition_heel_passed_box_start):
+                print("heel passed box by : ", (heel_passed_box_start_coordinate - config.box_start[0]) *  meter_per_pixel)
+            if(not form_condition_heel_passed_box_start):
+                print("heel did not pass box by : ", (config.box_start[0] - heel_passed_box_start_coordinate) * meter_per_pixel)
+            if(form_condition_heel_passed_box_end):
+                print("heel passed box end by : ", (toe_passed_box_end_coordinate - config.box_end[0]) * meter_per_pixel)
+            if(not form_condition_heel_passed_box_end):
+                print("heel did not pass box end by : ", -(toe_passed_box_end_coordinate - config.box_end[0]) * meter_per_pixel)
             print("=========3번============")
+            print("3rd condition is ", form_condition_forwardswing)
             print("hip turn angle at maximum backswing : ", hip_turn_data_smooth[max_clockwise_body_turn_frame])
             print("hip turn angle at impact : ", hip_turn_data_smooth[impactframe])
             print("torso turn angle at maximum backswing : ", torso_turn_data_smooth[max_clockwise_body_turn])
@@ -869,58 +947,63 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         #print('swing end at frame ', swing_end_frame + offset_frames)
         #print('offset frames', offset_frames)
         framenumber = [a + offset_frames for a in framenumber]
+        if(config.make_excel):
+            result_name = 'result_{}.xlsx'.format(video_name)
+            coordinate_name = 'coordinate_{}.xlsx'.format(video_name)
+            angle_name = 'body_angle_{}.xlsx'.format(video_name)
+            ball_name = 'ball_angle_{}.xlsx'.format(video_name)
 
-        result_name = 'result_{}.xlsx'.format(video_name)
-        coordinate_name = 'coordinate_{}.xlsx'.format(video_name)
-        angle_name = 'body_angle_{}.xlsx'.format(video_name)
-        ball_name = 'ball_angle_{}.xlsx'.format(video_name)
+            df = DataFrame({'ball angle' : [avg_angle], 'ball speed (pixels/frame)' : [avg_speed], 'ball speed (meters/second)' : [avg_speed_meter_per_second]})
+            df.to_excel(ball_name, sheet_name='sheet1', index=False)
 
-        df = DataFrame({'ball angle' : [avg_angle], 'ball speed (pixels/frame)' : [avg_speed], 'ball speed (meters/second)' : [avg_speed_meter_per_second]})
-        df.to_excel(ball_name, sheet_name='sheet1', index=False)
+            df = DataFrame({'Frame': framenumber, 
+                            'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
+                            'torso angle no smoothing': body_turn_data, 'torso angle with smoothing': torso_turn_data_smooth, 'torso angular velocity (from smooth)': torso_angular_vel_smooth,
+                            'wrist angle no smoothing': l_wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
+                            'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth
+                            })
+            df.to_excel(result_name, sheet_name='sheet1', index=False)
+            
+            df = DataFrame({'Frame' : framenumber,
+                            'right hip x' : [data.x for data in right_hip_position], 'right hip y' : [data.y for data in right_hip_position], 'right hip z' : [data.z for data in right_hip_position],
+                            'left hip x' : [data.x for data in left_hip_position], 'left hip y' : [data.y for data in left_hip_position], 'left hip z' : [data.z for data in left_hip_position],
 
-        df = DataFrame({'Frame': framenumber, 
-                        'hip angle no smoothing': hip_turn_data, 'hip angle with smoothing': hip_turn_data_smooth, 'hip angular velocity (from smooth)': hip_angular_vel_smooth,
-                        'torso angle no smoothing': body_turn_data, 'torso angle with smoothing': torso_turn_data_smooth, 'torso angular velocity (from smooth)': torso_angular_vel_smooth,
-                        'wrist angle no smoothing': l_wrist_angle_data, 'wrist angle with smoothing': wrist_angle_data_smooth, 'wrist angular velocity (from smooth)' : wrist_angular_vel_smooth,
-                        'elbow angle no smoothing': elbow_angle_data, 'elbow angle with smoothing': elbow_angle_data_smooth, 'elbow angular velocity(from smooth)': elbow_angular_vel_smooth
-                        })
-        df.to_excel(result_name, sheet_name='sheet1', index=False)
-        
-        df = DataFrame({'Frame' : framenumber,
-                        'right hip x' : [data.x for data in right_hip_position], 'right hip y' : [data.y for data in right_hip_position], 'right hip z' : [data.z for data in right_hip_position],
-                        'left hip x' : [data.x for data in left_hip_position], 'left hip y' : [data.y for data in left_hip_position], 'left hip z' : [data.z for data in left_hip_position],
+                            'right shoulder x' : [data.x for data in right_shoulder_position], 'right shoulder y' : [data.y for data in right_shoulder_position], 'right shoulder z' : [data.z for data in right_shoulder_position], 
+                            'left shoulder x' : [data.x for data in left_shoulder_position], 'left shoulder y' : [data.y for data in left_shoulder_position], 'left shoulder z' : [data.z for data in left_shoulder_position],
 
-                        'right shoulder x' : [data.x for data in right_shoulder_position], 'right shoulder y' : [data.y for data in right_shoulder_position], 'right shoulder z' : [data.z for data in right_shoulder_position], 
-                        'left shoulder x' : [data.x for data in left_shoulder_position], 'left shoulder y' : [data.y for data in left_shoulder_position], 'left shoulder z' : [data.z for data in left_shoulder_position],
+                            'right wrist x' : [data.x for data in right_wrist_position], 'right wrist y' : [data.y for data in right_wrist_position], 'right wrist z' : [data.z for data in right_wrist_position],
+                            'left wrist x' : [data.x for data in left_wrist_position], 'left wrist y' : [data.y for data in left_wrist_position], 'left wrist z' : [data.z for data in left_wrist_position],
 
-                        'right wrist x' : [data.x for data in right_wrist_position], 'right wrist y' : [data.y for data in right_wrist_position], 'right wrist z' : [data.z for data in right_wrist_position],
-                        'left wrist x' : [data.x for data in left_wrist_position], 'left wrist y' : [data.y for data in left_wrist_position], 'left wrist z' : [data.z for data in left_wrist_position],
+                            'right elbow x' : [data.x for data in right_elbow_position], 'right elbow y' : [data.y for data in right_elbow_position], 'right elbow z' : [data.z for data in right_elbow_position],
+                            'left elbow x' : [data.x for data in left_elbow_position], 'left elbow y' : [data.y for data in left_elbow_position], 'left elbow z' : [data.z for data in left_elbow_position],
 
-                        'right elbow x' : [data.x for data in right_elbow_position], 'right elbow y' : [data.y for data in right_elbow_position], 'right elbow z' : [data.z for data in right_elbow_position],
-                        'left elbow x' : [data.x for data in left_elbow_position], 'left elbow y' : [data.y for data in left_elbow_position], 'left elbow z' : [data.z for data in left_elbow_position],
+                            'right knee x' : [data.x for data in right_knee_position], 'right knee y' : [data.y for data in right_knee_position], 'right knee z' : [data.z for data in right_knee_position],
+                            'left knee x' : [data.x for data in left_knee_position], 'left knee y' : [data.y for data in left_knee_position], 'left knee z' : [data.z for data in left_knee_position],
 
-                        'right knee x' : [data.x for data in right_knee_position], 'right knee y' : [data.y for data in right_knee_position], 'right knee z' : [data.z for data in right_knee_position],
-                        'left knee x' : [data.x for data in left_knee_position], 'left knee y' : [data.y for data in left_knee_position], 'left knee z' : [data.z for data in left_knee_position],
+                            'right ankle x' : [data.x for data in right_ankle_position], 'right ankle y' : [data.y for data in right_ankle_position], 'right ankle z' : [data.z for data in right_ankle_position],
+                            'left ankle x' : [data.x for data in left_ankle_position], 'left ankle y' : [data.y for data in left_ankle_position], 'left ankle z' : [data.z for data in left_ankle_position],
 
-                        'right ankle x' : [data.x for data in right_ankle_position], 'right ankle y' : [data.y for data in right_ankle_position], 'right ankle z' : [data.z for data in right_ankle_position],
-                        'left ankle x' : [data.x for data in left_ankle_position], 'left ankle y' : [data.y for data in left_ankle_position], 'left ankle z' : [data.z for data in left_ankle_position],
+                            'right foot x' : [data.x for data in right_foot_position], 'right foot y' : [data.y for data in right_foot_position], 'right foot z': [data.z for data in right_foot_position],
+                            'left foot x' : [data.x for data in left_foot_position], 'left foot y' : [data.y for data in left_foot_position], 'left foot z' : [data.z for data in left_foot_position]
+                            })
+            df.to_excel(coordinate_name, sheet_name= 'sheet1', index=False)
 
-                        'right foot x' : [data.x for data in right_foot_position], 'right foot y' : [data.y for data in right_foot_position], 'right foot z': [data.z for data in right_foot_position],
-                        'left foot x' : [data.x for data in left_foot_position], 'left foot y' : [data.y for data in left_foot_position], 'left foot z' : [data.z for data in left_foot_position]
-                        })
-        df.to_excel(coordinate_name, sheet_name= 'sheet1', index=False)
-
-        df = DataFrame({'right ankle sagittal' : r_ankle_angle_data, 'left ankle sagittal' : l_ankle_angle_data,
-                        'right elbow sagittal' : r_elbow_angle_data, 'left elbow sagittal' : l_elbow_angle_data,
-                        'right knee sagittal' : r_knee_angle_data, 'left knee sagittal' : l_knee_angle_data,
-                        'right shoulder sagittal' : r_should_sag_data, 'left shoulder sagittal' : l_should_sag_data,
-                        'right shoulder horiz' : r_should_horiz_data, 'left shoulder horiz' : l_should_horiz_data,
-                        'right shoulder frontal' : r_should_front_data, 'left shoulder frontal' : l_should_front_data,
-                        'body turn' : body_turn_data, 'hip turn' : hip_turn_data, 'wrist angle' : l_wrist_angle_data,
-                        'right hip sagittal' : r_hip_sag_data, 'left hip sagittal' : l_hip_sag_data,
-                        'right hip horizontal' : r_hip_horiz_data, 'left hip horizontal': l_hip_horiz_data
-                        })
-        df.to_excel(angle_name, sheet_name = 'sheet1', index = False)
+            df = DataFrame({'right ankle sagittal' : r_ankle_angle_data, 'left ankle sagittal' : l_ankle_angle_data,
+                            'right elbow horizontal' : r_elbow_horizontal_angle_data, 'left elbow horizontal' : l_elbow_horizontal_angle_data,
+                            'right elbow sagittal' : r_elbow_angle_data, 'left elbow sagittal' : l_elbow_angle_data,
+                            'right wrist sagittal' : r_wrist_angle_data, 'left wrist sagittal' : l_wrist_angle_data,
+                            'right wrist frontal' : r_wrist_frontal_angle_data, 'left wrist frontal' : l_wrist_frontal_angle_data,
+                            'right ankle frontal' : r_ankle_frontal_angle_data, 'left ankle frontal' : l_ankle_frontal_angle_data,
+                            'right hip frontal' : r_hip_frontal_angle_data, 'left hip frontal' : l_hip_frontal_angle_data,
+                            'right knee sagittal' : r_knee_angle_data, 'left knee sagittal' : l_knee_angle_data,
+                            'right shoulder sagittal' : r_should_sag_data, 'left shoulder sagittal' : l_should_sag_data,
+                            'right shoulder horiz' : r_should_horiz_data, 'left shoulder horiz' : l_should_horiz_data,
+                            'right shoulder frontal' : r_should_front_data, 'left shoulder frontal' : l_should_front_data,
+                            'body turn' : body_turn_data, 'hip turn' : hip_turn_data, 'wrist angle' : l_wrist_angle_data,
+                            'right hip sagittal' : r_hip_sag_data, 'left hip sagittal' : l_hip_sag_data,
+                            'right hip horizontal' : r_hip_horiz_data, 'left hip horizontal': l_hip_horiz_data
+                            })
+            df.to_excel(angle_name, sheet_name = 'sheet1', index = False)
         """
         fig, axs = plt.subplots(3 ,4)
         axs[0,0].plot(framenumber, hip_turn_data_smooth)

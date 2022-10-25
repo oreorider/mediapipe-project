@@ -3,8 +3,7 @@ import argparse
 from subprocess import REALTIME_PRIORITY_CLASS
 import cv2
 import config
-
-
+import time
 
 # initialize the list of reference points and boolean indicating
 # whether cropping is being performed or not
@@ -82,6 +81,8 @@ def select_region(cap):
             config.box_start = refPt[0]
             config.box_end = refPt[1]
         # close all open windows
+        
+        
         cv2.destroyAllWindows()
 
 
