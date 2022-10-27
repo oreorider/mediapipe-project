@@ -1,13 +1,13 @@
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = 'pro.mp4'
+video_name = '2.mp4'
 
 #camera frames per second
 frame_per_second = 240
 
 #length of ball stand
-base_length = 1 #in meters
+base_length = 0.4 #in meters
 
 #real time yes or no
 #1 --> real time

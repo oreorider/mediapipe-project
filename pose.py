@@ -33,7 +33,8 @@ if(config.real_time):
 #신뢰값
 pose_confidence_value = 0.9
 
-meter_per_pixel = config.base_length/abs(config.box_end[0] - config.box_start[0])
+meter_per_pixel =0
+print("====== meters per pixel=========")
 tee_stand_pos = (config.box_end[0]+config.box_start[0])/2 #teeball stand in pixels
 
 mp_drawing = mp.solutions.drawing_utils
@@ -259,7 +260,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         cap = cv2.VideoCapture(0)
     _, frame = cap.read()
     select_region(cap)
-    
+    meter_per_pixel = config.base_length/abs(config.box_end[0] - config.box_start[0])
     if(config.real_time):
         #cap = cv2.VideoCapture(0)
         while True:
@@ -720,20 +721,32 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
     print('==============================')
     #print('avg ball angle is : ', avg_angle)
     selected_frames = framenumber_ball[selected_region]
-    #print('selected frames: ', selected_frames)
 
+    #print('selected frames: ', selected_frames)
+    #print(selected_x)
     dx = np.diff(selected_x)
+    dx = savgol_filter(dx, 5,3)
     dy = np.diff(selected_y)
+    dy = savgol_filter(dy, 5,3)
+    #plt.plot(np.arange(0,dx.size,1), dx)
+    #plt.plot(np.arange(0,dy.size,1), dy)
+    #plt.xlabel('frames')
+    #plt.ylabel('dx')
+    
+    #print (dy)
+    #print(dx, dy)
     #print(np.shape(dx))
     #print(np.shape(np.stack((dx, dy), axis=0)))
     dframe = np.diff(selected_frames)
     dists = LA.norm(np.stack((dx, dy)), axis = 0)
+    plt.plot(np.arange(0, dists.size,1), dists)
+    plt.show()
     dframe[dframe==0] = 1
     #print(np.shape(dists))
-    #print('*********dframe*********', frame)
+    print('*********dframe*********', dframe)
     speeds = dists/dframe
     avg_speed = np.average(speeds)
-    #print('avg speed in pixels per frame is :', avg_speed)
+    print('avg speed in pixels per frame is :', avg_speed)
     avg_speed_meter_per_second = avg_speed * meter_per_pixel * config.frame_per_second
     print('avg speed in meter per second is : ', avg_speed_meter_per_second)
 
