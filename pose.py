@@ -258,7 +258,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         cap = cv2.VideoCapture(video_name)
     else:
         cap = cv2.VideoCapture(0)
+        if(cap.isOpened()): print("CAM OPEN")
     _, frame = cap.read()
+    while(not _): 
+        _, frame = cap.read()
+    if(not _) : print("FRAME NOT READ")
     select_region(cap)
     meter_per_pixel = config.base_length/abs(config.box_end[0] - config.box_start[0])
     if(config.real_time):
