@@ -538,7 +538,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         shoulder_accel_norm = LA.norm(shoulder_accel, axis=0)
         wrist_accel_norm = LA.norm(wrist_accel, axis=0)
         """
-        print('body turn data length : ', len(body_turn_data))
+        #print('body turn data length : ', len(body_turn_data))
         torso_angular_vel = np.gradient(body_turn_data)
         hip_angular_vel = np.gradient(hip_turn_data)
         wrist_angular_vel = np.gradient(wrist_angle_data)
