@@ -13,7 +13,7 @@ from pandas import DataFrame
 #CHANGE VIDEO NAME 
 #프로그렘 돌리기전에 파일 이름 바꿔야됨
 #파일 타입 무조건 포함해야됨 예) ".mp4"
-video_name = "c8-6.mp4."
+video_name = "squat.mp4."
 CAMERA_FRAMREATE = 60
 #시뇌값
 pose_confidence_value = 0.9
@@ -549,38 +549,38 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence = pose_c
         hip_angular_vel_max = np.argmax(hip_angular_vel)
         wrist_angular_vel_max = np.argmax(wrist_angular_vel)
 
-        hip_turn_data_smooth = savgol_filter(hip_turn_data, 20, 3)
+        hip_turn_data_smooth = savgol_filter(hip_turn_data,19, 3)
         hip_angular_vel_smooth = np.gradient(hip_turn_data_smooth, 3)
 
-        torso_turn_data_smooth = savgol_filter(body_turn_data, 20, 3)
+        torso_turn_data_smooth = savgol_filter(body_turn_data, 19, 3)
         torso_angular_vel_smooth = np.gradient(torso_turn_data_smooth, 3)
 
-        wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 20, 3)
+        wrist_angle_data_smooth = savgol_filter(wrist_angle_data, 19, 3)
         wrist_angular_vel_smooth = np.gradient(wrist_angle_data_smooth, 10)
 
-        elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 20, 3)
+        elbow_angle_data_smooth = savgol_filter(elbow_angle_data, 19, 3)
         elbow_angular_vel_smooth = np.gradient(elbow_angle_data_smooth, 3)
         
 
-        swing_length = swing_end_frame - swing_start_frame
+        #swing_length = swing_end_frame - swing_start_frame
         
         #print(np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))
 
-        print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
-        print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-        print("")
+        #print("엉덩관절 최대 회전 각속도 @ frame number ", np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        #print((np.argmax(hip_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        #print("")
 
-        print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
-        print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-        print("")
+        #print("몸통 최대 각속도 @ frame number ", np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        #print((np.argmax(torso_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        #print("")
 
-        print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
-        print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-        print("")
+        #print("팔꿈치 최대 각속도 @ frame number", np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        #print((np.argmax(elbow_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        #print("")
 
-        print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
-        print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
-        print("")
+        #print("손목 최대 각속도 @ frame number ", np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]) + offset_frames + swing_start_frame)
+        #print((np.argmax(wrist_angular_vel_smooth[swing_start_frame : swing_end_frame]))/swing_length * 100.0, "%")
+        #print("")
 
 
         #print("swing start at frame ", swing_start_frame + offset_frames)
